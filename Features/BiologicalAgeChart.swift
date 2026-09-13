@@ -8,7 +8,12 @@ import PulseCore
 /// Colour follows the gap, not the age: below chronological is green, above is
 /// amber, well above is red. The chronological age itself is the boundary.
 struct BiologicalAgeChart: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let estimate: WellnessAgeEstimate
+    /// Animated position of the marker, so the value travels to its place
+    /// instead of appearing already there.
+    @State private var progress: Double = 0
+
     /// How far either side of the chronological age the ruler spans.
     private var span: Double { max(8, min(16, estimate.margin + abs(estimate.delta) + 5)) }
     private var lower: Double { estimate.chronologicalAge - span }
@@ -23,97 +28,115 @@ struct BiologicalAgeChart: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             GeometryReader { proxy in
-                // Inset so the first and last tick labels are not clipped.
-                let inset: CGFloat = 16
+                let inset: CGFloat = 18
                 let width = max(1, proxy.size.width - inset * 2)
                 let x: (Double) -> CGFloat = { value in
                     CGFloat((min(upper, max(lower, value)) - lower) / (upper - lower)) * width
                 }
-                ZStack(alignment: .topLeading) {
-                    zones(width: width, x: x)
-                    chronologicalMarker(x: x)
-                    uncertaintyBand(x: x)
-                    estimateMarker(x: x)
+                VStack(spacing: 0) {
+                    track(width: width, x: x)
+                    axis(x: x)
                 }
-                .frame(width: width, height: 46)
-                .overlay(alignment: .bottom) { tickLabels(x: x).frame(width: width, alignment: .topLeading) }
+                .frame(width: width)
                 .padding(.horizontal, inset)
             }
-            .frame(height: 64)
+            .frame(height: 86)
             legend
         }
+        .onAppear { animate() }
+        .onChange(of: estimate.age) { _, _ in animate() }
     }
 
-    /// Green up to the chronological age, then amber, then red. The gradient
-    /// stops are placed in age space so they line up with the ruler.
-    private func zones(width: CGFloat, x: (Double) -> CGFloat) -> some View {
-        let midpoint = Double(x(estimate.chronologicalAge) / max(1, width))
-        let amberEnd = Double(x(estimate.chronologicalAge + span * 0.55) / max(1, width))
-        return Capsule()
-            .fill(LinearGradient(stops: [
-                .init(color: AppColors.ageBetter, location: 0),
-                .init(color: AppColors.ageBetter, location: max(0, midpoint - 0.03)),
-                .init(color: AppColors.ageNeutral, location: midpoint),
-                .init(color: AppColors.ageWorse, location: amberEnd),
-                .init(color: AppColors.ageMuchWorse, location: 1)
-            ], startPoint: .leading, endPoint: .trailing))
-            .frame(height: 10)
-            .opacity(0.85)
-            .padding(.top, 12)
+    private func animate() {
+        guard !reduceMotion else { progress = 1; return }
+        progress = 0
+        withAnimation(.smooth(duration: 0.8)) { progress = 1 }
     }
 
-    /// A full-height line: this is the reference everything is measured from.
-    private func chronologicalMarker(x: (Double) -> CGFloat) -> some View {
-        VStack(spacing: 2) {
-            Capsule().fill(AppColors.ink.opacity(0.55)).frame(width: 2, height: 26)
+    /// The scale itself: graded zones, the uncertainty band, and the marker.
+    private func track(width: CGFloat, x: (Double) -> CGFloat) -> some View {
+        let centre = x(estimate.chronologicalAge)
+        let markerX = centre + (x(estimate.age) - centre) * progress
+        let bandStart = x(estimate.range.lowerBound)
+        let bandWidth = max(6, x(estimate.range.upperBound) - bandStart)
+        return ZStack(alignment: .topLeading) {
+            // Zones, as discrete segments rather than one smeared gradient:
+            // the boundary at the chronological age is the whole point and a
+            // continuous ramp hid it.
+            HStack(spacing: 2) {
+                zone(AppColors.ageBetter, width: centre - 1)
+                zone(AppColors.ageWorse, width: (width - centre) * 0.5 - 1)
+                zone(AppColors.ageMuchWorse, width: (width - centre) * 0.5 - 1)
+            }
+            .frame(height: 12)
+            .offset(y: 22)
+
+            // Plausible range, drawn over the zones it spans.
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule().strokeBorder(AppColors.ink.opacity(0.22), lineWidth: 1))
+                .frame(width: bandWidth * progress, height: 12)
+                .offset(x: bandStart + bandWidth * (1 - progress) / 2, y: 22)
+
+            // The chronological age: a full-height rule, the reference line.
+            Rectangle()
+                .fill(AppColors.ink.opacity(0.5))
+                .frame(width: 1.5, height: 30)
+                .offset(x: centre - 0.75, y: 13)
+
+            // The estimate, with its value carried above the marker.
+            VStack(spacing: 3) {
+                Text(number(estimate.age, digits: 1))
+                    .font(.caption2.weight(.bold)).monospacedDigit()
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7).padding(.vertical, 3)
+                    .background(AppColors.ageTint(estimate.delta), in: Capsule())
+                Circle()
+                    .fill(AppColors.ageTint(estimate.delta))
+                    .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
+                    .frame(width: 16, height: 16)
+                    .shadow(color: AppColors.ageTint(estimate.delta).opacity(0.5), radius: 4)
+            }
+            .offset(x: markerX - 18, y: 0)
         }
-        .offset(x: x(estimate.chronologicalAge) - 1)
+        .frame(width: width, height: 56)
     }
 
-    private func uncertaintyBand(x: (Double) -> CGFloat) -> some View {
-        Capsule()
-            .fill(AppColors.ink.opacity(0.18))
-            .frame(width: max(4, x(estimate.range.upperBound) - x(estimate.range.lowerBound)), height: 10)
-            .offset(x: x(estimate.range.lowerBound), y: 12)
-    }
-
-    private func estimateMarker(x: (Double) -> CGFloat) -> some View {
-        Circle()
-            .fill(.white)
-            .overlay(Circle().strokeBorder(AppColors.ageTint(estimate.delta), lineWidth: 4))
-            .frame(width: 20, height: 20)
-            .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
-            .offset(x: x(estimate.age) - 10, y: 7)
-    }
-
-    private func tickLabels(x: (Double) -> CGFloat) -> some View {
-        // Positions are resolved here rather than inside the builder, so no
-        // closure has to escape into the view tree.
-        let placed = ticks.map { (age: $0, offset: x($0) - 10) }
+    private func axis(x: (Double) -> CGFloat) -> some View {
+        let placed = ticks.map { (age: $0, offset: x($0) - 12) }
         return ZStack(alignment: .topLeading) {
             ForEach(placed, id: \.age) { tick in
                 let isChronological = abs(tick.age - estimate.chronologicalAge) < 0.5
-                Text(number(tick.age))
-                    .font(.caption2.weight(isChronological ? .semibold : .regular)).monospacedDigit()
-                    .foregroundStyle(isChronological ? AppColors.ink : .secondary)
-                    .fixedSize()
-                    .offset(x: tick.offset)
+                VStack(spacing: 2) {
+                    Rectangle()
+                        .fill(AppColors.ink.opacity(isChronological ? 0.35 : 0.15))
+                        .frame(width: 1, height: 4)
+                    Text(number(tick.age))
+                        .font(.caption2.weight(isChronological ? .bold : .regular))
+                        .monospacedDigit()
+                        .foregroundStyle(isChronological ? AppColors.ink : .secondary)
+                }
+                .frame(width: 24)
+                .offset(x: tick.offset)
             }
         }
-        // Must span the ruler: a bare height leaves the stack sized to its
-        // widest label, and every tick offset is then measured from the wrong
-        // origin and drifts right.
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(height: 14)
+        .frame(height: 24)
+    }
+
+    private func zone(_ colour: Color, width: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(colour.opacity(0.55))
+            .frame(width: max(0, width))
     }
 
     private var legend: some View {
         HStack(spacing: 14) {
             item("ageYou", AppColors.ageTint(estimate.delta))
-            item("ageChronological", AppColors.ink.opacity(0.55))
-            item("ageUncertainty", AppColors.ink.opacity(0.25))
+            item("ageChronological", AppColors.ink.opacity(0.5))
+            item("ageUncertainty", AppColors.ink.opacity(0.22))
             Spacer(minLength: 0)
         }
         .font(.caption2).foregroundStyle(.secondary)

@@ -262,12 +262,11 @@ private struct MetricHeroCard: View {
                     ScoreRing(metric: metric, value: score.value, size: 104, onScene: true)
                 }
             }
-            HStack(spacing: 10) {
-                ConfidenceBadge(percent: score.confidencePercent, onScene: true)
-                Spacer()
-                if metric == .sleep, let main = snapshot.sleepSessions.max(by: { $0.asleepMinutes < $1.asleepMinutes }) {
+            if metric == .sleep, let main = snapshot.sleepSessions.max(by: { $0.asleepMinutes < $1.asleepMinutes }) {
+                HStack(spacing: 10) {
                     pill("time.zzz", duration(main.asleepMinutes))
                     pill("bed.double", duration(snapshot.sleepNeed))
+                    Spacer()
                 }
             }
             if score.value == nil {
@@ -306,7 +305,6 @@ struct NarrativeCard: View {
             HStack {
                 Label(L("whatThisMeans"), systemImage: "text.alignleft").font(AppTypography.cardTitle)
                 Spacer()
-                ConfidenceBadge(percent: narrative.confidencePercent, compact: true)
             }
             Text(localized(narrative.headline)).font(.headline).fixedSize(horizontal: false, vertical: true)
             ForEach(narrative.detail) { line in
@@ -372,7 +370,6 @@ private struct LimitationsCard: View {
             HStack {
                 Label(L("aboutMetric"), systemImage: "info.circle").font(.subheadline.weight(.medium))
                 Spacer()
-                ConfidenceBadge(percent: score.confidencePercent, compact: true)
             }
             if let report = score.report, !report.limitations.isEmpty {
                 ForEach(report.limitations, id: \.self) { limitation in

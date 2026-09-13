@@ -1,21 +1,25 @@
-MIT License
+All Rights Reserved
 
 Copyright (c) 2026 Diego Pérez García
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This source code is made publicly visible for portfolio and review purposes
+only. No licence is granted.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may NOT, without prior written permission from the copyright holder:
+
+  - copy, reproduce or redistribute this software or any part of it;
+  - modify, adapt, translate or create derivative works from it;
+  - use it, in whole or in part, in any product, service or project,
+    commercial or non-commercial;
+  - reuse its algorithms, formulas, design system or assets.
+
+Viewing the repository and reading the code on GitHub is permitted. Note that
+GitHub's Terms of Service grant every user the ability to view and fork any
+public repository; that platform-level ability does not constitute a licence to
+use this code, and all rights above remain reserved.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED. IT IS NOT A MEDICAL DEVICE AND MUST NOT BE USED TO DIAGNOSE, TREAT OR
+PREVENT ANY CONDITION.
+
+For permission requests: https://github.com/diegoperezg7

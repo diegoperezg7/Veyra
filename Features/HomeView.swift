@@ -110,9 +110,6 @@ private struct DaySignalCard: View {
                 Label(L("personalAdvice"), systemImage: "sparkles")
                     .font(.caption.weight(.semibold)).opacity(0.85)
                 Spacer()
-                if briefing.confidencePercent > 0 {
-                    ConfidenceBadge(percent: briefing.confidencePercent, compact: true, onScene: true)
-                }
             }
             Text(localized(briefing.headline))
                 .font(.headline.weight(.semibold))

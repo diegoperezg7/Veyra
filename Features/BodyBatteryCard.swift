@@ -74,7 +74,6 @@ struct BodyBatteryCompactCard: View {
                         .monospacedDigit().contentTransition(.numericText())
                     Text("%").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
                     Spacer()
-                    ConfidenceBadge(percent: snapshot.score(.energy).confidencePercent, compact: true)
                 } else {
                     // A dash followed by a percent sign reads as a broken value.
                     Text(L("calibrating")).font(.title3.weight(.semibold)).foregroundStyle(.secondary)
@@ -163,7 +162,6 @@ struct BodyBatteryCard: View {
                         .font(.caption2).opacity(0.78)
                 }
                 Spacer(minLength: 10)
-                ConfidenceBadge(percent: snapshot.score(.energy).confidencePercent, compact: true, onScene: true)
             }
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(number(selected?.value)).font(.system(size: 54, weight: .semibold))

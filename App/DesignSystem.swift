@@ -159,13 +159,19 @@ struct SectionTitle: View {
     }
 }
 
-/// A closed ring. The stroke is thick enough to carry a gradient, which runs
-/// from a light tint at the start of the arc to the full metric colour at its
-/// head, with a soft glow behind it — a flat single-weight stroke read as a
-/// placeholder. The unit is part of the number: "72%", not a bare 72.
+/// A closed ring that draws itself in, shaded light-to-deep along the arc.
 ///
-/// An inner highlight band was tried and removed: offset inside a thick stroke
-/// it read as two concentric arcs, like a rendering fault, rather than as shine.
+/// Two things make this work where earlier attempts did not. The gradient's
+/// angular range is set to exactly the drawn arc, so the full light-to-deep
+/// range lands on the stroke whatever the value — spanning the whole circle
+/// meant a low score only ever showed the first sliver of the ramp. And the
+/// light end is the tint mixed towards *white*, not the tint at low opacity:
+/// a translucent start let the grey track show through and read as the ring
+/// being cut open.
+///
+/// The common trick in circular-progress libraries is to begin and end the
+/// gradient on the same colour so the wrap is invisible. That is unavailable
+/// here precisely because the point is for the two ends to differ.
 struct ScoreRing: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -174,18 +180,23 @@ struct ScoreRing: View {
     var size: CGFloat = 88
     var onScene = false
 
+    /// Drawn length, animated from zero on appear and on every change.
+    @State private var sweep: Double = 0
+
     private var tint: Color { onScene ? AppColors.metricOnScene(metric) : AppColors.metric(metric) }
     private var width: CGFloat { max(9, size * 0.145) }
     private var fraction: Double { min(1, max(0, (value ?? 0) / 100)) }
 
-    /// Light to full colour across exactly the drawn arc, so the gradient does
-    /// not compress into a sliver on low scores.
-    private var arcGradient: AngularGradient {
-        AngularGradient(
-            gradient: Gradient(colors: [tint.opacity(0.45), tint.opacity(0.75), tint]),
+    /// Opaque throughout: light at the start of the arc, full colour at its head.
+    private var shade: AngularGradient {
+        let light = tint.mix(with: .white, by: onScene ? 0.32 : 0.48)
+        let mid = tint.mix(with: .white, by: onScene ? 0.14 : 0.20)
+        return AngularGradient(
+            gradient: Gradient(colors: [light, mid, tint]),
             center: .center,
             startAngle: .degrees(-90),
-            endAngle: .degrees(-90 + 360 * max(0.08, fraction))
+            // Exactly the drawn arc, so the ramp is the same shape at any value.
+            endAngle: .degrees(-90 + 360 * max(0.12, sweep))
         )
     }
 
@@ -194,17 +205,15 @@ struct ScoreRing: View {
             Circle()
                 .stroke(onScene ? Color.white.opacity(0.20) : AppColors.border, lineWidth: width)
             if value != nil {
-                // The glow sits under the stroke, clipped to the ring so it
-                // never fogs the number in the middle.
                 Circle()
-                    .trim(from: 0, to: max(0.004, fraction))
+                    .trim(from: 0, to: sweep)
                     .stroke(tint, style: StrokeStyle(lineWidth: width, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .blur(radius: reduceTransparency ? 0 : width * 0.55)
-                    .opacity(reduceTransparency ? 0 : 0.55)
+                    .blur(radius: reduceTransparency ? 0 : width * 0.5)
+                    .opacity(reduceTransparency ? 0 : 0.45)
                 Circle()
-                    .trim(from: 0, to: max(0.004, fraction))
-                    .stroke(arcGradient, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                    .trim(from: 0, to: sweep)
+                    .stroke(shade, style: StrokeStyle(lineWidth: width, lineCap: .round))
                     .rotationEffect(.degrees(-90))
             }
             if let value {
@@ -224,14 +233,24 @@ struct ScoreRing: View {
             }
         }
         .frame(width: size, height: size)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.45), value: value)
+        .onAppear { animate(to: fraction) }
+        .onChange(of: fraction) { _, target in animate(to: target) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L(metric.rawValue))
         .accessibilityValue(value.map { number($0) + "%" } ?? L("noData"))
     }
+
+    private func animate(to target: Double) {
+        guard value != nil else { sweep = 0; return }
+        let length = max(0.004, target)
+        guard !reduceMotion else { sweep = length; return }
+        withAnimation(.smooth(duration: 0.55 + 0.5 * length)) { sweep = length }
+    }
 }
 
-/// Confidence as a percentage rather than a four-step word.
+/// Confidence as a percentage rather than a four-step word. The label is never
+/// dropped: a lone "46%" in a corner tells the reader nothing about what is
+/// 46% of what. `compact` only makes it smaller.
 struct ConfidenceBadge: View {
     var percent: Double
     var compact = false
@@ -242,14 +261,15 @@ struct ConfidenceBadge: View {
         switch percent { case ..<20: AppColors.danger; case ..<45: AppColors.warn; default: AppColors.accent }
     }
     var body: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "gauge.with.dots.needle.bottom.50percent").font(.caption2.weight(.semibold))
-            Text(number(percent) + "%").monospacedDigit()
-            if !compact { Text(L("confidence")).opacity(0.75) }
+        HStack(spacing: 4) {
+            Image(systemName: "gauge.with.dots.needle.bottom.50percent")
+                .font((compact ? Font.caption2 : Font.caption).weight(.semibold))
+            Text(L("confidence")).opacity(0.8)
+            Text(number(percent) + "%").monospacedDigit().fontWeight(.semibold)
         }
-        .font(.caption.weight(.medium))
+        .font((compact ? Font.caption2 : Font.caption).weight(.medium))
         .foregroundStyle(onScene ? Color.white : tint)
-        .padding(.horizontal, 9).padding(.vertical, 5)
+        .padding(.horizontal, compact ? 7 : 9).padding(.vertical, compact ? 4 : 5)
         .background {
             if onScene { Capsule().fill(.ultraThinMaterial) } else { Capsule().fill(tint.opacity(0.12)) }
         }
@@ -335,7 +355,10 @@ extension View {
     }
 }
 
-private extension Color {
+extension Color {
+    /// Linear blend between two colours. Used to lighten a tint towards white
+    /// without making it transparent, which is the difference between a ring
+    /// that looks shaded and one that looks cut.
     func mix(with other: Color, by amount: Double) -> Color {
         let t = min(1, max(0, amount))
         let a = UIColor(self), b = UIColor(other)

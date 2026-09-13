@@ -7554,6 +7554,7 @@
         }
       }
     },
+    "s": {},
     "saturatedFat": {
       "extractionState": "stale",
       "localizations": {
@@ -10024,13 +10025,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Wellness age"
+            "value": "Biological age"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Edad de bienestar"
+            "value": "Edad biológica"
           }
         }
       }
@@ -10041,13 +10042,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Experimental wellness estimate. Not a medical measurement or Bevel's biological-age algorithm."
+            "value": "An estimate from your fitness and daily signals."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Estimación experimental de bienestar. No es una medición médica ni el algoritmo de edad biológica de Bevel."
+            "value": "Estimación a partir de tu forma física y tus señales diarias."
           }
         }
       }
@@ -10075,13 +10076,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Combines sleep, movement and the vitals actually available. The correction is applied in proportion to the confidence, so with little data the estimate stays close to your real age. It is not a clinical test."
+            "value": "This is not a clinical biological age. The published methods (Klemera–Doubal, PhenoAge) require blood chemistry and a watch measures none of their markers. Veyra anchors the estimate on your VO₂max against age- and sex-normative curves, then applies bounded corrections for resting heart rate, training, HRV, sleep, regularity, steps, stress and body composition. The correction is scaled by the confidence."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Combina sueño, movimiento y las constantes realmente disponibles. La corrección se aplica en proporción a la confianza, así que con pocos datos la estimación se mantiene cerca de tu edad real. No es una prueba clínica."
+            "value": "Esto no es una edad biológica clínica. Los métodos publicados (Klemera–Doubal, PhenoAge) necesitan analítica de sangre y un reloj no mide ninguno de sus marcadores. Veyra ancla la estimación en tu VO₂máx frente a las curvas normativas por edad y sexo, y encima aplica correcciones acotadas por frecuencia en reposo, entrenamiento, VFC, sueño, regularidad, pasos, estrés y composición corporal. La corrección se escala por la confianza."
           }
         }
       }
