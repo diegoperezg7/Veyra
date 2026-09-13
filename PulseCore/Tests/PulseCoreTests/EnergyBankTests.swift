@@ -53,12 +53,45 @@ final class EnergyBankTests: XCTestCase {
         XCTAssertEqual(EnergyBankEngine.morning(previous: .nan, recovery: 80, sleep: 60), 73)
     }
     func testRestAndExerciseMoveInExpectedDirections() {
+        // Resting quietly drains more slowly than being busy, but still drains.
         let rest = EnergyBankEngine.step(energy: 50, stress: 10, load: 0, resting: true)
+        let busy = EnergyBankEngine.step(energy: 50, stress: 55, load: 0, resting: false)
         let workout = EnergyBankEngine.step(energy: 50, stress: nil, load: 50, resting: false)
-        XCTAssertGreaterThan(rest.value, 50)
-        XCTAssertLessThan(workout.value, 50)
+        XCTAssertLessThan(rest.value, 50)
+        XCTAssertGreaterThan(rest.value, busy.value)
+        XCTAssertLessThan(workout.value, busy.value)
         XCTAssertGreaterThan(EnergyBankEngine.step(energy: 50, stress: nil, load: 0, resting: false, napMinutes: 15).value, 50)
     }
+    /// Regression: a calm waking day used to walk the level up to 100. Resting
+    /// quietly must slow the drain, never reverse it.
+    func testWakingTimeNeverNetsPositiveWithoutASleep() {
+        for stress in [5.0, 15, 22, 24.9, 30, 45, 70] {
+            let step = EnergyBankEngine.step(energy: 60, stress: stress, load: 0, resting: true)
+            XCTAssertLessThanOrEqual(step.value, 60, "activation \(stress) should not charge the battery")
+            XCTAssertEqual(step.restoration, 0, "waking rest is not restoration")
+        }
+        // A whole calm day drains rather than fills.
+        var level = 85.0
+        for _ in 0..<64 {
+            level = EnergyBankEngine.step(energy: level, stress: 18, load: 0, resting: true).value
+        }
+        XCTAssertLessThan(level, 85)
+        XCTAssertGreaterThan(level, 40, "a calm day should not empty it either")
+
+        // A busy day drains faster than a calm one.
+        var busy = 85.0
+        for _ in 0..<64 {
+            busy = EnergyBankEngine.step(energy: busy, stress: 55, load: 0, resting: false).value
+        }
+        XCTAssertLessThan(busy, level)
+
+        // Naps and the overnight ramp are the only things that add.
+        XCTAssertGreaterThan(EnergyBankEngine.step(energy: 50, stress: nil, load: 0, resting: false, napMinutes: 15).value, 50)
+        XCTAssertGreaterThan(
+            EnergyBankEngine.step(energy: 20, stress: nil, load: 0, resting: false, asleepMinutes: 15, sleepRate: 0.125).value,
+            20)
+    }
+
     func testStepReportsWhyTheLevelMoved() {
         let workout = EnergyBankEngine.step(energy: 60, stress: 80, load: 30, resting: false)
         XCTAssertGreaterThan(workout.loadDrain, 0)

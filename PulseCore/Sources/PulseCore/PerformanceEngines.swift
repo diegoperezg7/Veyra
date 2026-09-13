@@ -127,6 +127,12 @@ public enum EnergyBankEngine {
     }
     /// One simulation step, returning the breakdown so the battery view can
     /// explain what charged and what drained it.
+    ///
+    /// Waking time can never net positive. Resting quietly *slows* the drain;
+    /// it does not reverse it. The previous version granted a flat restoration
+    /// whenever observed activation was low, which was harmless while stress
+    /// was pinned high but, once activation read correctly, applied for most of
+    /// a calm day and walked the level up to 100. Only sleep and naps add.
     public static func step(energy: Double, stress: Double?, load: Double, resting: Bool, minutes: Double = 15, napMinutes: Double = 0, asleepMinutes: Double = 0, sleepRate: Double = 0) -> EnergyStep {
         let energy = energy.isFinite ? Statistics.clamp(energy) : 0
         guard minutes.isFinite, minutes > 0 else { return .init(value: energy) }
@@ -135,19 +141,24 @@ public enum EnergyBankEngine {
         let napMinutes = napMinutes.isFinite ? min(minutes, max(0, napMinutes)) : 0
         let asleepMinutes = asleepMinutes.isFinite ? min(minutes, max(0, asleepMinutes)) : 0
         let factor = minutes / 15
-
-        let stressDrain = pow(max(0, (stress ?? 35) - 35) / 65, 1.5) * 2.5 * factor
-        let loadDrain = load * 0.1
-        // Sleeping suspends the waking baseline cost.
         let asleep = asleepMinutes >= minutes * 0.5
-        let baselineDrain = asleep ? 0 : 0.25 * factor
-        let restoration = (resting && (stress ?? 100) < 25 ? 0.9 * factor : 0)
-            + min(12, napMinutes * 0.15)
-            + asleepMinutes * max(0, sleepRate)
+
+        // Activation above a calm baseline costs energy. The threshold sits at
+        // 25 because heart-rate reserve puts an ordinary calm waking interval
+        // in the low twenties; measuring from 35 left most of the day free.
+        let stressDrain = asleep ? 0 : pow(max(0, (stress ?? 30) - 25) / 75, 1.5) * 3.0 * factor
+        let loadDrain = load * 0.1
+        // Sleeping suspends the waking cost; resting quietly reduces it.
+        let calm = resting && (stress ?? 100) < 25
+        let baselineDrain = asleep ? 0 : (calm ? 0.12 : 0.35) * factor
+        // Only real sleep restores: the overnight ramp, and naps.
+        let restoration = asleepMinutes * max(0, sleepRate) + min(12, napMinutes * 0.15)
 
         let value = Statistics.clamp(energy + restoration - stressDrain - loadDrain - baselineDrain)
-        return .init(value: value, restoration: restoration, stressDrain: asleep ? 0 : stressDrain, loadDrain: loadDrain, baselineDrain: baselineDrain, asleep: asleep)
+        return .init(value: value, restoration: restoration, stressDrain: stressDrain,
+                     loadDrain: loadDrain, baselineDrain: baselineDrain, asleep: asleep)
     }
+
     /// Points per asleep minute needed to climb from `start` to `target` across
     /// `minutes` of sleep. Keeps the overnight ramp tied to the scored night
     /// instead of inventing a fixed recharge speed.

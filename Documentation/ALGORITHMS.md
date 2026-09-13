@@ -207,3 +207,30 @@ personal median, then the fifth percentile of the day's actual samples.
 
 Regression test: `testStressReadsHeartRateReserveAndCannotPin` asserts that
 ordinary waking rates from 70 to 100 bpm never read as extreme activation.
+
+
+## Energy — version 4 (2026-09-13)
+
+Waking time can no longer net positive.
+
+Version 3 granted a flat restoration of 0.9 points per fifteen minutes whenever
+observed activation was below 25. That was inert while the stress engine was
+pinned near 96, but once activation read correctly the condition held for most
+of a calm day and the level walked up to 100 on its own.
+
+Resting quietly now *slows* the drain instead of reversing it: the waking
+baseline cost falls from 0.35 to 0.12 points per fifteen minutes while calm.
+Only real sleep adds — the overnight ramp and naps.
+
+The stress drain threshold also moves from 35 to 25, because heart-rate reserve
+puts an ordinary calm waking interval in the low twenties; measured from 35,
+most of the day was costing nothing at all.
+
+    stressDrain   = ((activation − 25) / 75)^1.5 × 3.0        (0 while asleep)
+    baselineDrain = 0.35, or 0.12 when calm                   (0 while asleep)
+    loadDrain     = 0.1 × workout zone load in the interval
+    restoration   = asleepMinutes × sleepRate + min(12, napMinutes × 0.15)
+
+Regression test: `testWakingTimeNeverNetsPositiveWithoutASleep` asserts that no
+waking interval charges the battery at any activation level, and that a calm
+sixteen-hour day drains without emptying.
