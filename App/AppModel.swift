@@ -306,7 +306,40 @@ import PulseCore
     func saveTemplate(_ template: WorkoutTemplate) { perform { try store.save(template, key: template.id.uuidString, kind: "template"); templates.removeAll { $0.id == template.id }; templates.append(template); publish() } }
     func deleteTemplate(_ template: WorkoutTemplate) { perform { try store.remove(key: template.id.uuidString); templates.removeAll { $0.id == template.id }; publish() } }
     func saveSession(_ session: StrengthSession) { perform { try store.save(session, key: session.id.uuidString, kind: "session", date: session.start); sessions.removeAll { $0.id == session.id }; sessions.append(session) } }
-    func startStrength(_ template: WorkoutTemplate) { guard activeSession == nil else { return }; saveSession(.init(name: template.name, sets: template.sets)); route = "activeStrength" }
+    func startStrength(_ template: WorkoutTemplate) {
+        guard activeSession == nil else { return }
+        // A routine's sets are a plan, not a record: start them unticked, and
+        // carry over the weights from the last time each exercise was done.
+        let previous = sessions
+        var counts: [String: Int] = [:]
+        let sets = template.sets.map { set -> StrengthSet in
+            let position = counts[set.exerciseID, default: 0]
+            counts[set.exerciseID] = position + 1
+            var prepared = StrengthHistoryEngine.suggestion(exercise: set.exerciseID, position: position, in: previous) ?? set
+            prepared.id = UUID()
+            prepared.completed = false
+            return prepared
+        }
+        saveSession(.init(name: template.name, sets: sets))
+        route = "activeStrength"
+    }
+    /// Starts an empty session and opens it.
+    func startSession(name: String) {
+        guard activeSession == nil else { route = "activeStrength"; return }
+        saveSession(.init(name: name, sets: []))
+        route = "activeStrength"
+    }
+    /// Today's run of a workout already done, with the same exercises and
+    /// numbers and nothing ticked.
+    func repeatWorkout(_ session: StrengthSession) {
+        guard activeSession == nil else { route = "activeStrength"; return }
+        saveSession(StrengthHistoryEngine.repeated(session))
+        route = "activeStrength"
+    }
+    func deleteSession(_ session: StrengthSession) {
+        perform { try store.remove(key: session.id.uuidString); sessions.removeAll { $0.id == session.id } }
+    }
+    func exercise(_ id: String) -> ExerciseDefinition? { exercises.first { $0.id == id } }
     /// Reads a week of every type and reports what came back, so a sync that
     /// brings nothing can be traced to the type that is empty.
     func runProbe() async {
