@@ -279,3 +279,94 @@ struct StrengthProgressCard: View {
         }
     }
 }
+
+/// Strain against the target the app set for the day. Training harder than
+/// planned is not automatically good and not automatically bad — what matters
+/// is whether it is a pattern, so the card shows the run, not just today.
+struct StrainPerformanceCard: View {
+    var history: [DailySnapshot]
+    var days: Int = 30
+
+    private struct Day: Identifiable {
+        var date: Date
+        var strain: Double
+        var target: Double?
+        var id: Date { date }
+    }
+
+    private var window: [Day] {
+        history.suffix(days).compactMap { snapshot in
+            guard let strain = snapshot.score(.strain).value else { return nil }
+            return Day(date: snapshot.date, strain: strain, target: snapshot.targetStrain)
+        }
+    }
+    /// How far the last week sat from its targets, as a percentage. Only days
+    /// that had a target count: before the app has a baseline there is none.
+    private var deviation: Double? {
+        let recent = window.suffix(7).filter { $0.target != nil }
+        guard recent.count >= 3 else { return nil }
+        let strain = recent.reduce(0) { $0 + $1.strain }
+        let target = recent.reduce(0) { $0 + ($1.target ?? 0) }
+        guard target > 0 else { return nil }
+        return (strain - target) / target * 100
+    }
+
+    var body: some View {
+        Card(spacing: 12) {
+            Label(L("strainPerformance"), systemImage: "target").font(AppTypography.cardTitle)
+            if let deviation {
+                // Inside the band is the thing worth marking green. Training
+                // under target is not automatically good and over target is not
+                // automatically bad, so the colour says in-or-out, not
+                // better-or-worse.
+                let inside = abs(deviation) <= 15
+                let above = deviation >= 0
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text((above ? "+" : "−") + number(abs(deviation)) + "%")
+                        .font(.system(size: 30, weight: .bold)).monospacedDigit()
+                        .foregroundStyle(inside ? AppColors.accent : AppColors.metric(.strain))
+                    Text(L(inside ? "onTarget" : above ? "aboveTarget" : "belowTarget"))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Label(L("calibrating"), systemImage: "hourglass")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            Chart {
+                ForEach(window) { day in
+                    if let target = day.target {
+                        // The target band: a corridor, not a line, because
+                        // hitting a number exactly is not the goal.
+                        AreaMark(x: .value("d", day.date),
+                                 yStart: .value("from", target * 0.85),
+                                 yEnd: .value("to", target * 1.15))
+                            .foregroundStyle(AppColors.accentSoft)
+                    }
+                }
+                ForEach(window) { day in
+                    LineMark(x: .value("d", day.date), y: .value("strain", day.strain))
+                        .foregroundStyle(AppColors.metric(.strain))
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .interpolationMethod(.monotone)
+                }
+            }
+            .chartYScale(domain: 0...100)
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: [0, 50, 100]) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 4])).foregroundStyle(AppColors.border)
+                    AxisValueLabel().font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                    AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .frame(height: 110)
+            Text(L("strainPerformanceDetail")).font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}

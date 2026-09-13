@@ -29,7 +29,7 @@ struct WorkoutDetailView: View {
     }
     private var focus: WorkoutAnalysis.Focus? { WorkoutAnalysis.focus(workout) }
     private var load: Double { WorkoutAnalysis.load(workout) }
-    private var history: [WorkoutSummary] { model.history.flatMap(\.workouts) }
+    private var history: [WorkoutSummary] { model.allWorkouts }
     private var comparison: Double? { WorkoutAnalysis.loadComparison(workout, history: history) }
     /// The strength session logged for this workout, if there is one.
     private var loggedSession: StrengthSession? {
@@ -176,7 +176,7 @@ struct WorkoutDetailView: View {
                 }
             }
             WorkoutHeartRateChart(workout: workout)
-            ZoneScale()
+            ZoneScale(resting: workout.restingHeartRate, maximum: workout.maximumHeartRateReference)
         }
     }
 
@@ -316,25 +316,21 @@ struct WorkoutDetailView: View {
         Card(spacing: 12) {
             Label(L("workoutDetails"), systemImage: "list.bullet.clipboard").font(AppTypography.cardTitle)
             if let session = loggedSession {
-                ForEach(session.exerciseOrder, id: \.self) { id in
-                    HStack(spacing: 10) {
-                        if let exercise = model.exercise(id) {
-                            ExerciseThumbnail(exercise: exercise, size: 38)
+                // Every set, as performed. A summary line was not enough: the
+                // point of logging is being able to look up what you lifted.
+                ForEach(Array(MuscleTensionEngine.groups(session.sets).enumerated()), id: \.offset) { _, group in
+                    VStack(alignment: .leading, spacing: 8) {
+                        if group.count > 1 {
+                            Label(L("superset"), systemImage: "arrow.triangle.2.circlepath")
+                                .font(.caption2.weight(.semibold)).foregroundStyle(AppColors.accent)
                         }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(model.exercise(id)?.name ?? id).font(.caption.weight(.medium)).lineLimit(1)
-                            Text(session.sets.filter { $0.exerciseID == id }
-                                    .map { "\($0.reps)×\(number($0.weightKg, digits: 1))" }
-                                    .joined(separator: "  "))
-                                .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        ForEach(group, id: \.self) { id in
+                            LoggedExercise(exercise: model.exercise(id), fallbackName: id,
+                                           sets: session.sets.filter { $0.exerciseID == id })
                         }
-                        Spacer()
                     }
+                    .padding(.vertical, 2)
                 }
-                NavigationLink { SessionDetail(session: session) } label: {
-                    Label(L("seeFullDetail"), systemImage: "chevron.right")
-                        .font(.caption.weight(.semibold)).foregroundStyle(AppColors.accent)
-                }.buttonStyle(.plain)
             } else {
                 Text(L("workoutDetailsEmpty")).font(.subheadline).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -447,19 +443,40 @@ private struct WorkoutHeartRateChart: View {
     }
 }
 
-/// The colour scale under the chart, so the bands have a legend.
+/// The colour scale under the chart, with the heart rate each zone starts at.
+/// A band of colour alone says which zone is which; it does not say what the
+/// line has to reach to get there.
 private struct ZoneScale: View {
+    var resting: Double?
+    var maximum: Double?
+
+    private func lowerBound(_ zone: Int) -> Double? {
+        guard let resting, let maximum else { return nil }
+        return WorkoutAnalysis.zoneBounds(zone, resting: resting, maximum: maximum)?.lowerBound
+    }
+
     var body: some View {
         VStack(spacing: 4) {
+            HStack(spacing: 2) {
+                ForEach(0..<6, id: \.self) { zone in
+                    Text("Z\(zone)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(WorkoutStyle.zoneColor(zone))
+                        .frame(maxWidth: .infinity)
+                }
+            }
             HStack(spacing: 2) {
                 ForEach(0..<6, id: \.self) { zone in
                     Capsule().fill(WorkoutStyle.zoneColor(zone)).frame(height: 6)
                 }
             }
-            HStack(spacing: 2) {
-                ForEach(0..<6, id: \.self) { zone in
-                    Text("Z\(zone)").font(.caption2).foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity)
+            if resting != nil {
+                HStack(spacing: 2) {
+                    ForEach(0..<6, id: \.self) { zone in
+                        Text(lowerBound(zone).map { number($0) } ?? "")
+                            .font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
         }
@@ -548,6 +565,54 @@ struct MuscleTensionChart: View {
                     Text("+\(shares.count - 8)").font(.caption2).foregroundStyle(.tertiary)
                 }
             }
+        }
+    }
+}
+
+
+/// One exercise of a logged session: its picture, how many sets, and the sets
+/// themselves as a small table.
+private struct LoggedExercise: View {
+    var exercise: ExerciseDefinition?
+    var fallbackName: String
+    var sets: [StrengthSet]
+
+    private var done: [StrengthSet] { sets.filter(\.completed) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                if let exercise { ExerciseThumbnail(exercise: exercise, size: 38) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise?.name ?? fallbackName).font(.subheadline.weight(.medium)).lineLimit(2)
+                    if let exercise {
+                        Text(L("muscle." + (exercise.primaryMuscles.first ?? "other")))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 6)
+                Text("\(done.count) " + L(done.count == 1 ? "setSingular" : "series").lowercased())
+                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+            }
+            VStack(spacing: 0) {
+                ForEach(Array(done.enumerated()), id: \.element.id) { index, set in
+                    HStack {
+                        Text("\(index + 1)")
+                            .font(.caption.weight(.bold)).monospacedDigit()
+                            .foregroundStyle(.tertiary).frame(width: 20, alignment: .leading)
+                        Text(set.weightKg > 0 ? number(set.weightKg, digits: 1) + " kg" : L("equipment.bodyweight"))
+                            .font(.caption).monospacedDigit()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("×\(set.reps)")
+                            .font(.caption.weight(.medium)).monospacedDigit()
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                    .padding(.vertical, 5)
+                    if set.id != done.last?.id { Divider().overlay(AppColors.divider) }
+                }
+            }
+            .padding(.horizontal, 10)
+            .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 }

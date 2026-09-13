@@ -16,6 +16,9 @@ import PulseCore
     /// per lookup — Biology alone did it eighteen times per redraw, walking
     /// thousands of samples each time.
     private(set) var vitalSeries: [String: [Vital]] = [:]
+    /// Every recorded workout, newest first. Built once per history change:
+    /// three screens were each flattening the whole history on every redraw.
+    private(set) var allWorkouts: [WorkoutSummary] = []
     var latestVitals: [String: Vital] { vitalSeries.compactMapValues(\.last) }
     var entries: [LogEntry] = []
     var templates: [WorkoutTemplate] = []
@@ -123,6 +126,7 @@ import PulseCore
         }
         for key in index.keys { index[key]?.sort { $0.date < $1.date } }
         vitalSeries = index
+        allWorkouts = history.flatMap(\.workouts).sorted { $0.start > $1.start }
     }
     /// The latest recorded sample of a vital, or nil when there is none.
     func latestVital(_ key: String) -> Vital? { vitalSeries[key]?.last }

@@ -199,6 +199,17 @@ lo advierte: el reparto por zonas solo cubre ese tramo.
 | **Muscular frente a cardio** | Publicado (por composición) | Es el mismo reparto del que ya se compone el esfuerzo: carga de zonas cardíacas (Edwards) frente a carga de fuerza. No introduce aritmética nueva, así que no puede contradecir la puntuación de esfuerzo |
 | **Peso total y repeticiones** | — | Suma directa de las series marcadas. No es una estimación |
 
+### Rendimiento del esfuerzo
+
+Compara el esfuerzo de los últimos 7 días con el objetivo que la app fija a
+partir de tu recuperación y tu carga crónica. Solo cuentan los días que
+llegaron a tener objetivo: antes de que exista una línea base no hay ninguno, y
+entonces la tarjeta dice que está calibrando en vez de inventar un porcentaje.
+
+La banda del gráfico es ±15% alrededor del objetivo. **El color marca dentro o
+fuera de la banda, no mejor o peor**: entrenar por debajo del objetivo no es
+automáticamente bueno ni por encima automáticamente malo.
+
 ---
 
 ## Qué suma y qué resta en la edad biológica

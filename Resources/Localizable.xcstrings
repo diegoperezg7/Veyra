@@ -244,6 +244,23 @@
         }
       }
     },
+    "aboveTarget": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "above your target"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por encima de tu objetivo"
+          }
+        }
+      }
+    },
     "acrossTheDay": {
       "extractionState": "manual",
       "localizations": {
@@ -1601,6 +1618,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vigilia"
+          }
+        }
+      }
+    },
+    "belowTarget": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "below your target"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por debajo de tu objetivo"
           }
         }
       }
@@ -9068,6 +9102,23 @@
         }
       }
     },
+    "onTarget": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "within your target"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dentro de tu objetivo"
+          }
+        }
+      }
+    },
     "oneActivity": {
       "extractionState": "manual",
       "localizations": {
@@ -11076,6 +11127,23 @@
         }
       }
     },
+    "setSingular": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "set"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "serie"
+          }
+        }
+      }
+    },
     "setType": {
       "extractionState": "stale",
       "localizations": {
@@ -11954,6 +12022,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Esfuerzo"
+          }
+        }
+      }
+    },
+    "strainPerformance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strain performance"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rendimiento del esfuerzo"
+          }
+        }
+      }
+    },
+    "strainPerformanceDetail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your strain over the last 7 days against the target your recovery sets. The band is the reasonable margin, not a line to hit exactly."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu esfuerzo de los últimos 7 días frente al objetivo que marca tu recuperación. La banda es el margen razonable, no una línea que haya que clavar."
           }
         }
       }

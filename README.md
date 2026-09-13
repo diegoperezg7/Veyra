@@ -119,6 +119,13 @@ add up to exactly the difference from your chronological age, so the breakdown
 explains the number above it instead of merely resembling it — which the
 previous version, listing raw per-signal years that did not sum, did not.
 
+### The month, on the Fitness screen
+
+A calendar of which days had training, the running total of minutes over the
+window, strain against the target your recovery sets — coloured by whether it
+sits inside the band, not by direction — volume per muscle group, and which
+exercises you are progressing on, ranked by best estimated 1RM per session.
+
 ### A workout, in full
 
 Apple Health records a session; it does not explain it. Opening a workout shows

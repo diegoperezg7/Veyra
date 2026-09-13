@@ -96,12 +96,14 @@
   ],
   "secondaryMuscles": [],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "bench",
+  "allEquipment": [
+   "bench"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": true,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Túmbate en un banco plano sujetándote a él con la mano libre.",
    "Coge la mancuerna con la otra mano y, con el antebrazo paralelo al suelo, describe un arco hasta el centro del pecho.",
@@ -220,12 +222,14 @@
    "shoulders"
   ],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Túmbate en un banco plano entre dos torres de poleas, con los pies firmes en el suelo.",
    "Coge una polea con cada mano con las palmas hacia arriba.",
@@ -280,12 +284,14 @@
    "triceps"
   ],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Coloca un banco inclinado a 45 grados entre dos torres de poleas.",
    "Coge una polea con cada mano con las palmas hacia arriba.",
@@ -467,12 +473,14 @@
    "shoulders"
   ],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Ajusta la polea a la altura de los hombros.",
    "Sujeta una polea con cada mano y colócate a unos 30 cm por delante de las torres, con un pie algo adelantado.",
@@ -522,12 +530,14 @@
   ],
   "secondaryMuscles": [],
   "group": "core",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "ball",
+  "allEquipment": [
+   "ball"
+  ],
   "movementPattern": "core",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Este crunch usa un fitball, que permite más recorrido porque se adapta mejor a la curva de la espalda.",
    "Siéntate sobre un fitball con los pies bien apoyados en el suelo.",
@@ -1572,12 +1582,14 @@
   ],
   "secondaryMuscles": [],
   "group": "arms",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "machine",
+  "allEquipment": [
+   "machine"
+  ],
   "movementPattern": "pull",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Ajusta el asiento de la máquina para que los codos queden alineados con el eje de giro.",
    "Apoya los brazos contra las almohadillas y mantenlos quietos durante todo el ejercicio.",
@@ -2601,12 +2613,14 @@
    "biceps"
   ],
   "group": "back",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "bar",
+  "allEquipment": [
+   "bar"
+  ],
   "movementPattern": "pull",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Agarra una barra de dominadas algo más ancho que la anchura de los hombros.",
    "Con el cuerpo recto, súbete hacia un lado de la barra.",
@@ -2715,12 +2729,14 @@
   ],
   "secondaryMuscles": [],
   "group": "core",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "bench",
+  "allEquipment": [
+   "bench"
+  ],
   "movementPattern": "core",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Túmbate en un banco plano con las manos bajo la cadera para apoyar la espalda.",
    "Las piernas deben quedar fuera del banco a partir de las rodillas.",
@@ -3023,7 +3039,7 @@
  },
  {
   "id": "front-cable-raises",
-  "name": "Elevación frontal",
+  "name": "Elevación frontal (cable)",
   "englishName": "Front Cable Raises",
   "primaryMuscles": [
    "shoulders"
@@ -3032,12 +3048,14 @@
    "chest"
   ],
   "group": "shoulders",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Coloca la polea en la posición más baja, justo por encima del suelo.",
    "De pie, con los pies a la anchura de los hombros, el abdomen activado y las rodillas ligeramente flexionadas.",
@@ -3153,12 +3171,14 @@
    "back"
   ],
   "group": "shoulders",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Agarra el asa de la polea baja con la mano derecha.",
    "Flexiona la cadera hasta dejar el tronco casi paralelo al suelo. Flexiona ligeramente las rodillas y apoya la mano izquierda en el muslo izquierdo. Deja colgar el brazo derecho por delante, con el codo algo flexionado: esa es la posición inicial.",
@@ -3211,12 +3231,14 @@
   ],
   "secondaryMuscles": [],
   "group": "shoulders",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Siéntate en el borde de un banco con los pies apoyados en el suelo, por delante de ti.",
    "Apoya el pecho sobre los muslos con la espalda recta y coge cada polea con la mano contraria.",
@@ -3387,12 +3409,14 @@
    "shoulders"
   ],
   "group": "back",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "pull",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Engancha una polea en la posición más baja de la máquina.",
    "De pie, con los pies a la anchura de los hombros, el abdomen activado y la espalda recta.",
@@ -4560,12 +4584,14 @@
    "triceps"
   ],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "ball",
+  "allEquipment": [
+   "ball"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Pon el bosu en el suelo con la parte plana hacia abajo.",
    "Arrodíllate en el suelo con los brazos extendidos del todo sobre el balón y el cuerpo recto.",
@@ -4704,12 +4730,14 @@
    "shoulders"
   ],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "bar",
+  "allEquipment": [
+   "bar"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Colócate entre las barras paralelas.",
    "Agarra las empuñaduras y súbete a la posición inicial con los brazos extendidos.",
@@ -4734,12 +4762,14 @@
    "chest"
   ],
   "group": "arms",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "bar",
+  "allEquipment": [
+   "bar"
+  ],
   "movementPattern": "push",
   "compound": true,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Agarra unas barras paralelas y súbete a la posición inicial.",
    "Con los codos pegados al cuerpo, baja hasta que el tríceps quede paralelo al suelo.",
@@ -4791,12 +4821,14 @@
    "chest"
   ],
   "group": "arms",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "bench",
+  "allEquipment": [
+   "bench"
+  ],
   "movementPattern": "push",
   "compound": true,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Este ejercicio es de los más básicos y sigue siendo de los mejores para desarrollar el tríceps.",
    "Coloca dos bancos paralelos, separados algo menos de un metro.",
@@ -4972,12 +5004,14 @@
    "hamstrings"
   ],
   "group": "legs",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "hinge",
   "compound": false,
   "unilateral": true,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "En una torre de poleas, engancha una tobillera a la polea baja.",
    "De cara a la torre, con las rodillas ligeramente flexionadas y el abdomen activado.",
@@ -5730,12 +5764,14 @@
    "shoulders"
   ],
   "group": "chest",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "machine",
+  "allEquipment": [
+   "machine"
+  ],
   "movementPattern": "push",
   "compound": false,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Ajusta la máquina para quedar sentado con las asas a la altura del pecho.",
    "Coloca las manos en las asas y los pies en el reposapiés.",
@@ -6458,36 +6494,6 @@
   ]
  },
  {
-  "id": "upright-cable-row",
-  "name": "Remo al mentón",
-  "englishName": "Upright Cable Row",
-  "primaryMuscles": [
-   "shoulders"
-  ],
-  "secondaryMuscles": [
-   "biceps"
-  ],
-  "group": "shoulders",
-  "equipment": "bodyweight",
-  "allEquipment": [],
-  "movementPattern": "push",
-  "compound": false,
-  "unilateral": false,
-  "bodyweight": true,
-  "steps": [
-   "Engancha una barra recta a la polea del suelo.",
-   "De pie, con los pies a la anchura de los hombros, el abdomen activado y la espalda recta.",
-   "Agarra la barra en pronación y súbela hasta la cintura: esa es la posición inicial.",
-   "Sube la barra hasta la línea de los hombros.",
-   "Haz una pausa arriba y junta las escápulas.",
-   "Baja la barra a la posición inicial con un movimiento controlado."
-  ],
-  "art": [
-   "upright-cable-row-1.png",
-   "upright-cable-row-2.png"
-  ]
- },
- {
   "id": "upright-band-rows",
   "name": "Remo al mentón (band)",
   "englishName": "Upright Band Rows",
@@ -6548,6 +6554,38 @@
   "art": [
    "upright-barbell-rows-1.png",
    "upright-barbell-rows-2.png"
+  ]
+ },
+ {
+  "id": "upright-cable-row",
+  "name": "Remo al mentón (cable)",
+  "englishName": "Upright Cable Row",
+  "primaryMuscles": [
+   "shoulders"
+  ],
+  "secondaryMuscles": [
+   "biceps"
+  ],
+  "group": "shoulders",
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
+  "movementPattern": "push",
+  "compound": false,
+  "unilateral": false,
+  "bodyweight": false,
+  "steps": [
+   "Engancha una barra recta a la polea del suelo.",
+   "De pie, con los pies a la anchura de los hombros, el abdomen activado y la espalda recta.",
+   "Agarra la barra en pronación y súbela hasta la cintura: esa es la posición inicial.",
+   "Sube la barra hasta la línea de los hombros.",
+   "Haz una pausa arriba y junta las escápulas.",
+   "Baja la barra a la posición inicial con un movimiento controlado."
+  ],
+  "art": [
+   "upright-cable-row-1.png",
+   "upright-cable-row-2.png"
   ]
  },
  {
@@ -6852,12 +6890,14 @@
    "lowerBack"
   ],
   "group": "back",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "pull",
   "compound": true,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Siéntate en una máquina de polea baja con los pies apoyados en los reposapiés y las rodillas ligeramente flexionadas.",
    "Con el abdomen activado y la espalda recta, inclínate ligeramente hacia delante para agarrar las poleas en pronación.",
@@ -6879,12 +6919,14 @@
   ],
   "secondaryMuscles": [],
   "group": "core",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "ball",
+  "allEquipment": [
+   "ball"
+  ],
   "movementPattern": "core",
   "compound": true,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Colócate como si fueras a hacer una flexión.",
    "Apoya los pies y las espinillas sobre un fitball.",
@@ -6908,12 +6950,14 @@
    "biceps"
   ],
   "group": "shoulders",
-  "equipment": "bodyweight",
-  "allEquipment": [],
+  "equipment": "cable",
+  "allEquipment": [
+   "cable"
+  ],
   "movementPattern": "push",
   "compound": true,
   "unilateral": false,
-  "bodyweight": true,
+  "bodyweight": false,
   "steps": [
    "Siéntate en el suelo cerca de una polea baja.",
    "Agarra la polea con el brazo izquierdo y coloca el codo flexionado a 90 grados.",

@@ -63,6 +63,27 @@ def equipment_keys(values):
         if key and key not in out: out.append(key)
     return out
 
+# The source leaves equipment off about fifty entries even when the name says
+# it plainly. Reading it from the name is better than calling a cable row
+# bodyweight work.
+NAME_EQUIPMENT = [
+    ("smith machine", "smith"), ("stability ball", "ball"), ("exercise ball", "ball"),
+    ("medicine ball", "ball"), ("bosu", "ball"), ("dome", "ball"),
+    ("cable", "cable"), ("pulley", "cable"), ("rope", "cable"),
+    ("ez bar", "ezbar"), ("ez curl", "ezbar"),
+    ("barbell", "barbell"), ("dumbbell", "dumbbell"), ("kettlebell", "kettlebell"),
+    ("machine", "machine"), ("band", "band"), ("plate", "plate"),
+    ("bench", "bench"), ("chin", "bar"), ("pull up", "bar"), ("pull-up", "bar"),
+    ("dip", "bar"),
+]
+
+def equipment_from_name(title):
+    low = title.lower()
+    for needle, key in NAME_EQUIPMENT:
+        if needle in low:
+            return key
+    return None
+
 def pattern(title, primary):
     low = title.lower()
     if re.search(r"squat|lunge|leg press|step up|hack", low): return "squat"
@@ -131,6 +152,9 @@ def main():
         primary = PRIMARY_FIX.get(item["name"]) or muscles(item.get("primary"))
         secondary = muscles(item.get("secondary"))
         equipment = equipment_keys(item.get("equipment"))
+        if not equipment:
+            inferred = equipment_from_name(item["title"])
+            if inferred: equipment = [inferred]
         title = spanish(item["title"])
         names[title] += 1
         art = convert(frames, item["name"])

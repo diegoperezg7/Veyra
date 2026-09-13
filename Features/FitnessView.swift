@@ -30,7 +30,7 @@ struct FitnessView: View {
         model.sessions.filter { $0.end != nil }
     }
     private var workouts: [WorkoutSummary] {
-        model.history.flatMap(\.workouts).sorted { $0.start > $1.start }
+        model.allWorkouts
     }
 
     private var vo2: Double? { model.latestVital("vo2")?.value }
@@ -44,7 +44,7 @@ struct FitnessView: View {
     /// weekly volume, and a Monday should not reset it to zero.
     private var weeklyActivity: WeeklyActivityEngine.Result {
         let end = Date()
-        return WeeklyActivityEngine.calculate(workouts: model.history.flatMap(\.workouts),
+        return WeeklyActivityEngine.calculate(workouts: model.allWorkouts,
                                               from: end.addingTimeInterval(-7 * 86400), to: end)
     }
 
@@ -57,6 +57,7 @@ struct FitnessView: View {
                 }
                 ActivityCalendarCard(history: model.history)
                 ActivitySummaryCard(history: model.history)
+                StrainPerformanceCard(history: model.history)
 
                 Card {
                     HStack {
