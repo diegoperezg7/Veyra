@@ -21,7 +21,44 @@ public struct EnergySummary: Sendable, Equatable {
     }
 }
 
+/// How the current level compares with the same time of day on other days.
+public struct EnergyComparison: Sendable, Equatable {
+    public var current: Double
+    /// The median level at this time of day across the compared days.
+    public var typical: Double
+    /// Signed percentage difference against that median.
+    public var percent: Double
+    public var time: Date
+    public var days: Int
+}
+
 public enum EnergySummaryEngine {
+    /// Minimum past days before a "higher than usual" claim is made at all.
+    public static let comparisonMinimumDays = 5
+
+    /// Compares the level now with the level at the same clock time on previous
+    /// days. Without this the screen can say what the number is but not whether
+    /// it is unusual, which is the part a person actually asks about.
+    public static func compare(detail: [EnergyPoint], history: [[EnergyPoint]], now: Date, calendar: Calendar = .current) -> EnergyComparison? {
+        guard let current = detail.filter({ $0.date <= now }).max(by: { $0.date < $1.date }) else { return nil }
+        let minutes = calendar.component(.hour, from: current.date) * 60 + calendar.component(.minute, from: current.date)
+
+        // The value closest to the same clock time on each past day, within
+        // half an hour; a day that was not being recorded then is skipped.
+        let past = history.compactMap { day -> Double? in
+            let candidates = day.compactMap { point -> (Double, Double)? in
+                let stamp = calendar.component(.hour, from: point.date) * 60 + calendar.component(.minute, from: point.date)
+                let distance = abs(Double(stamp - minutes))
+                return distance <= 30 ? (distance, point.value) : nil
+            }
+            return candidates.min { $0.0 < $1.0 }?.1
+        }
+        guard past.count >= comparisonMinimumDays, let typical = Statistics.median(past), typical > 1 else { return nil }
+        return .init(current: current.value, typical: typical,
+                     percent: (current.value - typical) / typical * 100,
+                     time: current.date, days: past.count)
+    }
+
     /// Totals are taken from the level actually reached between consecutive
     /// points, not from the modelled restoration and drain terms. Those two
     /// differ whenever the level clamps at 0 or 100, and the figure on screen

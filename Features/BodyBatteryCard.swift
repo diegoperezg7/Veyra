@@ -205,6 +205,7 @@ struct BodyBatteryCompactCard: View {
 /// The energy screen: the cell and its account at the top, then the day's level
 /// with the activation that drove it underneath, sharing one time axis.
 struct BodyBatteryCard: View {
+    @Environment(AppModel.self) private var model
     let snapshot: DailySnapshot
     var expanded = false
     @State private var selectedTime: Date?
@@ -223,11 +224,20 @@ struct BodyBatteryCard: View {
         guard let first = points.first?.date, let last = points.last?.date, last > first else { return nil }
         return first...last
     }
+    /// The same clock time on previous days, for the "higher than usual" line.
+    private var comparison: EnergyComparison? {
+        let past = model.history
+            .filter { !Calendar.current.isDate($0.date, inSameDayAs: snapshot.date) }
+            .sorted { $0.date > $1.date }
+            .prefix(21)
+            .compactMap(\.energyDetail)
+        return EnergySummaryEngine.compare(detail: detail, history: Array(past), now: Date())
+    }
 
     var body: some View {
         VStack(spacing: 18) {
             Card {
-                BatteryGauge(value: selected?.value, height: 118).padding(.horizontal, 4)
+                BatteryGauge(value: selected?.value, height: 92).padding(.horizontal, 2)
                 if let peak = summary.lastChargePeak, let at = summary.lastChargeAt {
                     Text(L("batteryLastCharge")
                             .replacingOccurrences(of: "{0}", with: number(peak))
@@ -239,11 +249,29 @@ struct BodyBatteryCard: View {
 
             if points.count > 1 {
                 EnergyTotals(summary: summary)
+
+                if let comparison {
+                    Card {
+                        Label(L("personalAdvice"), systemImage: "sparkles")
+                            .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(L(comparison.percent >= 0 ? "batteryAboveUsual" : "batteryBelowUsual")
+                                .replacingOccurrences(of: "{0}", with: number(abs(comparison.percent)))
+                                .replacingOccurrences(of: "{1}", with: comparison.time.formatted(date: .omitted, time: .shortened)))
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(L("batteryComparedWith")
+                                .replacingOccurrences(of: "{0}", with: String(comparison.days)))
+                            .font(.caption2).foregroundStyle(.tertiary)
+                    }
+                }
+
                 Card {
                     Text(snapshot.date.formatted(date: .long, time: .omitted)).font(AppTypography.cardTitle)
                     EnergyLevelChart(points: points, summary: summary, window: window, selection: $selectedTime)
                     StressStripChart(points: snapshot.stress, window: window, selection: $selectedTime)
+                        .padding(.top, 6)
                     EnergyLegend(hasPredicted: points.contains(where: \.predicted))
+                        .padding(.top, 2)
                 }
                 Card {
                     Text(L("batteryBalance")).font(AppTypography.cardTitle)
@@ -394,7 +422,8 @@ private struct EnergyLevelChart: View {
             }
             .chartXAxis(.hidden)
             .chartXSelection(value: $selection)
-            .frame(height: 170)
+            .chartPlotStyle { $0.clipped() }
+            .frame(height: 160)
         }
     }
 }
@@ -407,7 +436,14 @@ private struct StressStripChart: View {
     let window: ClosedRange<Date>?
     @Binding var selection: Date?
 
-    private var data: [TimelinePoint] { points.filter { $0.value.isFinite }.sorted { $0.date < $1.date } }
+    /// Clipped to the shared window. Activation is sampled from heart rate and
+    /// can run past the end of the energy timeline; those points were drawn
+    /// outside the plot and spilled over the axis labels.
+    private var data: [TimelinePoint] {
+        let all = points.filter { $0.value.isFinite }.sorted { $0.date < $1.date }
+        guard let window else { return all }
+        return all.filter { window.contains($0.date) }
+    }
     private var nearest: TimelinePoint? {
         guard let selection else { return nil }
         return data.min { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) }
@@ -460,6 +496,7 @@ private struct StressStripChart: View {
                     }
                 }
                 .chartXSelection(value: $selection)
+                .chartPlotStyle { $0.clipped() }
                 .frame(height: 110)
             }
         }

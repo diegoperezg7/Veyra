@@ -789,6 +789,23 @@
         }
       }
     },
+    "batteryAboveUsual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your energy reserves are {0} % above what is usual at {1} on an ordinary day."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu nivel de reservas de energía es un {0} % superior a lo habitual a las {1} en un día corriente."
+          }
+        }
+      }
+    },
     "batteryBalance": {
       "extractionState": "manual",
       "localizations": {
@@ -836,6 +853,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Las franjas de color marcan cuándo dormías y cuándo entrenabas; la línea es tu nivel en ese momento. En los tramos sin medición de estrés el nivel se estima."
+          }
+        }
+      }
+    },
+    "batteryBelowUsual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your energy reserves are {0} % below what is usual at {1} on an ordinary day."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu nivel de reservas de energía es un {0} % inferior a lo habitual a las {1} en un día corriente."
+          }
+        }
+      }
+    },
+    "batteryComparedWith": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compared with the same time of day across your last {0} recorded days."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparado con la misma hora en tus últimos {0} días registrados."
           }
         }
       }
