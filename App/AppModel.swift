@@ -31,6 +31,17 @@ import PulseCore
     var lastSyncError: String?
     /// Types the last import could not read, for the same reason.
     var unreadableTypes: [String] = []
+    /// What the last import actually brought in, so a sync that "finished" with
+    /// nothing can be told apart from one that worked.
+    var lastSyncSamples = 0
+    var lastSyncDays = 0
+    /// Result of the last read probe, shown in Diagnostics.
+    var probe: [HealthProbeRow] = []
+    var probing = false
+    var authorizationStatus: String?
+    /// True when a completed sync brought back no samples at all, which in
+    /// practice means Health is refusing to hand them over.
+    var healthReturnedNothing = false
     var route: String?
     var tab = "home"
     var exercises: [ExerciseDefinition] = []
@@ -141,11 +152,12 @@ import PulseCore
             let changes = try await health.changes(anchors: force ? [:] : anchors, since: start)
             progress = 0.05
             var from = start
-            if !force && !history.isEmpty && !changes.deleted {
+            if !force && !history.isEmpty && !changes.deleted && !changes.fullImport {
                 from = changes.affected.min() ?? calendar.startOfDay(for: Date())
                 from = max(start, calendar.date(byAdding: .day, value: -1, to: from) ?? from)
             }
             var updated = history.filter { $0.date < from }
+            var samplesRead = 0
             let days = DayBoundary.days(from: from, through: Date())
             var offset = 0
             while offset < days.count {
@@ -162,6 +174,7 @@ import PulseCore
                 syncDetail = "\(min(offset + chunk.count, days.count))/\(days.count)"
                 let batch = try await health.read(from: readFrom, to: readTo, maximumHR: preferences.maximumHR)
                 unreadableTypes = batch.unreadableTypes
+                samplesRead += batch.vitals.count + batch.sleep.count + batch.workouts.count
                 let movement = (try? await health.movement(from: readFrom, to: readTo)) ?? [:]
                 progress = fraction(offset: offset, chunk: chunk.count, total: days.count, within: 0.6)
 
@@ -198,6 +211,13 @@ import PulseCore
             recalibrateWellnessAge()
             publish()
             lastSyncError = nil
+            lastSyncSamples = samplesRead
+            lastSyncDays = days.count
+            // A sync that reads nothing is not a successful sync. HealthKit
+            // reports a denied read as an empty result rather than an error, so
+            // this is the only signal that permission is missing.
+            healthReturnedNothing = samplesRead == 0 && !days.isEmpty
+            if healthReturnedNothing { authorizationStatus = await health.requestStatus() }
             progress = 1
             syncCompletedAt = Date()
         } catch is CancellationError { errorMessage = L("syncCancelled") }
@@ -287,6 +307,22 @@ import PulseCore
     func deleteTemplate(_ template: WorkoutTemplate) { perform { try store.remove(key: template.id.uuidString); templates.removeAll { $0.id == template.id }; publish() } }
     func saveSession(_ session: StrengthSession) { perform { try store.save(session, key: session.id.uuidString, kind: "session", date: session.start); sessions.removeAll { $0.id == session.id }; sessions.append(session) } }
     func startStrength(_ template: WorkoutTemplate) { guard activeSession == nil else { return }; saveSession(.init(name: template.name, sets: template.sets)); route = "activeStrength" }
+    /// Reads a week of every type and reports what came back, so a sync that
+    /// brings nothing can be traced to the type that is empty.
+    func runProbe() async {
+        guard !probing else { return }
+        probing = true
+        defer { probing = false }
+        authorizationStatus = await health.requestStatus()
+        probe = await health.probe()
+    }
+    /// Opens Veyra's own page in Settings, which is where Health permissions
+    /// are actually changed. Health itself cannot be deep-linked to an app's
+    /// data sources.
+    func openHealthSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
+    }
     func saveDocument(_ document: HealthDocument) { perform { try store.save(document, key: document.id.uuidString, kind: "document"); documents.append(document) } }
     func handleURL(_ url: URL) {
         guard url.scheme == "pulselab", let host = url.host else { return }

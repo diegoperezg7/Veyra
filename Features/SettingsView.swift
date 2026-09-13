@@ -36,7 +36,7 @@ struct SettingsView: View {
                 SettingsRow(title: "health", symbol: "heart.fill", tint: .pink,
                             value: model.preferences.healthConnected ? L("connected") : L("notConnected")) { HealthSettingsView() }
                 SettingsRow(title: "appleWatch", symbol: "applewatch", tint: .gray,
-                            value: model.connectivity.reachable ? L("connected") : nil) { WatchSettingsView() }
+                            value: model.connectivity.link.linked ? L("connected") : nil) { WatchSettingsView() }
             }
             Section {
                 SettingsRow(title: "profileAndGoals", symbol: "person.fill", tint: AppColors.accent) { ProfileSettingsView() }
@@ -253,7 +253,9 @@ struct WatchSettingsView: View {
     var body: some View {
         Form {
             Section(L("connection")) {
-                LabeledContent(L("status"), value: L(model.connectivity.reachable ? "connected" : "notConnected"))
+                LabeledContent(L("status"), value: L("watchLink." + model.connectivity.link.rawValue))
+                Text(L("watchLinkDetail." + model.connectivity.link.rawValue))
+                    .font(.caption).foregroundStyle(.secondary)
                 LabeledContent(L("lastWatchSync"), value: model.connectivity.lastReceived?.formatted(date: .abbreviated, time: .shortened) ?? "—")
                 Button(L("resendToWatch")) { model.publish() }
             }
@@ -367,6 +369,38 @@ struct DiagnosticsView: View {
                 LabeledContent(L("lastSync"), value: model.preferences.lastSyncAt?.formatted(date: .abbreviated, time: .shortened) ?? "—")
                 LabeledContent(L("lastWatchSync"), value: model.connectivity.lastReceived?.formatted(date: .abbreviated, time: .shortened) ?? "—")
             }
+            Section(L("lastImport")) {
+                LabeledContent(L("samplesRead"), value: "\(model.lastSyncSamples)")
+                LabeledContent(L("daysCalculated"), value: "\(model.lastSyncDays)")
+                if let status = model.authorizationStatus {
+                    LabeledContent(L("healthPermissions"), value: L("healthStatus." + status))
+                }
+                if model.healthReturnedNothing {
+                    Label(L("healthReturnedNothing"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote).foregroundStyle(AppColors.warn)
+                    Button(L("openHealthSettings")) { model.openHealthSettings() }
+                }
+            }
+            Section {
+                Button {
+                    Task { await model.runProbe() }
+                } label: {
+                    Label(model.probing ? L("probing") : L("probeHealth"), systemImage: "waveform.badge.magnifyingglass")
+                }.disabled(model.probing)
+                Text(L("probeDetail")).font(.caption2).foregroundStyle(.secondary)
+                ForEach(model.probe) { row in
+                    HStack {
+                        Text(L(row.key)).font(.footnote)
+                        Spacer()
+                        if let error = row.error {
+                            Text(error).font(.caption2).foregroundStyle(AppColors.danger).lineLimit(1)
+                        } else {
+                            Text("\(row.count)").font(.footnote.monospacedDigit())
+                                .foregroundStyle(row.count == 0 ? AnyShapeStyle(AppColors.warn) : AnyShapeStyle(Color.primary))
+                        }
+                    }
+                }
+            } header: { Text(L("readProbe")) }
             // What went wrong is worth showing plainly: a denied permission and
             // a transient read error look identical from the alert alone.
             if model.lastSyncError != nil || !model.unreadableTypes.isEmpty {

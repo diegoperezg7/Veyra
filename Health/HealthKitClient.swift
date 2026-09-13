@@ -110,7 +110,23 @@ enum HealthCatalog {
          HKAppleWalkingSteadinessClassification.veryLow.minimum.doubleValue(for: .percent()) * 100)
     }
 }
-struct HealthChanges: Sendable { var anchors: [String: Data]; var affected: Set<Date>; var deleted: Bool }
+struct HealthChanges: Sendable {
+    var anchors: [String: Data]
+    var affected: Set<Date>
+    var deleted: Bool
+    /// True when at least one type had no previous anchor, so the whole
+    /// requested window has to be imported rather than just the changed days.
+    var fullImport = false
+}
+
+/// One line of the read report shown in Diagnostics.
+struct HealthProbeRow: Sendable, Identifiable, Codable {
+    var key: String
+    var count: Int
+    var latest: Date?
+    var error: String?
+    var id: String { key }
+}
 
 /// Collects the types that refused to be read during one import, so a partial
 /// sync can report what it could not reach instead of failing silently.
@@ -149,6 +165,63 @@ actor HealthKitClient: HealthDataRepository {
         }
         return (birth, sex)
     }
+    /// Whether iOS still has permissions to ask for. `.unnecessary` means every
+    /// type in the catalogue has been presented to the user at least once — it
+    /// does *not* mean they said yes, because HealthKit deliberately never
+    /// reveals a read denial.
+    func requestStatus() async -> String {
+        guard HKHealthStore.isHealthDataAvailable() else { return "unavailable" }
+        var read = HealthCatalog.readTypes
+        for identifier in [HKCharacteristicTypeIdentifier.dateOfBirth, .biologicalSex] {
+            if let type = HKObjectType.characteristicType(forIdentifier: identifier) { read.insert(type) }
+        }
+        return await withCheckedContinuation { continuation in
+            store.getRequestStatusForAuthorization(toShare: [], read: read) { status, _ in
+                switch status {
+                case .shouldRequest: continuation.resume(returning: "shouldRequest")
+                case .unnecessary: continuation.resume(returning: "granted")
+                default: continuation.resume(returning: "unknown")
+                }
+            }
+        }
+    }
+
+    /// Counts what each type actually returns over a window. This is the only
+    /// way to tell "you have no data" from "you denied this type": HealthKit
+    /// reports a denied read as an empty result, not as an error.
+    func probe(days: Double = 7) async -> [HealthProbeRow] {
+        let to = Date(), from = to.addingTimeInterval(-days * 86400)
+        var rows: [HealthProbeRow] = []
+        for definition in HealthCatalog.quantities {
+            guard let type = HKObjectType.quantityType(forIdentifier: definition.identifier) else { continue }
+            do {
+                let samples = try await samples(type, from: from, to: to)
+                rows.append(.init(key: definition.key, count: samples.count,
+                                  latest: samples.map(\.startDate).max(), error: nil))
+            } catch {
+                rows.append(.init(key: definition.key, count: 0, latest: nil,
+                                  error: (error as NSError).localizedDescription))
+            }
+        }
+        for identifier in HealthCatalog.categories {
+            guard let type = HKObjectType.categoryType(forIdentifier: identifier) else { continue }
+            do {
+                let samples = try await samples(type, from: from, to: to)
+                rows.append(.init(key: identifier.rawValue.replacingOccurrences(of: "HKCategoryTypeIdentifier", with: ""),
+                                  count: samples.count, latest: samples.map(\.startDate).max(), error: nil))
+            } catch {
+                rows.append(.init(key: identifier.rawValue, count: 0, latest: nil, error: (error as NSError).localizedDescription))
+            }
+        }
+        do {
+            let workouts = try await samples(HKObjectType.workoutType(), from: from, to: to)
+            rows.append(.init(key: "workouts", count: workouts.count, latest: workouts.map(\.startDate).max(), error: nil))
+        } catch {
+            rows.append(.init(key: "workouts", count: 0, latest: nil, error: (error as NSError).localizedDescription))
+        }
+        return rows.sorted { $0.key < $1.key }
+    }
+
     func read(from: Date, to: Date, maximumHR: Double) async throws -> HealthBatch {
         let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: [])
         // The types are independent of each other, so reading them concurrently
@@ -267,7 +340,21 @@ actor HealthKitClient: HealthDataRepository {
         var result = HealthChanges(anchors: anchors, affected: [], deleted: false)
         for type in HealthCatalog.readTypes.compactMap({ $0 as? HKSampleType }).sorted(by: { $0.identifier < $1.identifier }) {
             let anchor = try? anchors[type.identifier].flatMap { try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: $0) }
-            var cursor = anchor ?? nil
+            guard let anchor else {
+                // No anchor yet: every sample in the window is "changed", and
+                // walking a year of heart rate a thousand samples at a time
+                // just to learn that costs minutes and is immediately thrown
+                // away by the full read that follows. Take the current anchor
+                // without enumerating anything and import the window directly.
+                result.fullImport = true
+                if let page = try? await anchored(type: type, anchor: nil, since: Date()),
+                   let cursor = page.anchor,
+                   let data = try? NSKeyedArchiver.archivedData(withRootObject: cursor, requiringSecureCoding: true) {
+                    result.anchors[type.identifier] = data
+                }
+                continue
+            }
+            var cursor: HKQueryAnchor? = anchor
             var more = true
             while more {
                 // Same reasoning as the read above: an unauthorised type is

@@ -151,16 +151,58 @@ public protocol HealthDataRepository: Sendable {
     /// them from a fixed 185 bpm mis-scales every workout for most people.
     func read(from: Date, to: Date, maximumHR: Double) async throws -> HealthBatch
 }
+/// One exercise in the catalogue. Decoding is explicit and every field has a
+/// fallback so a catalogue written by a different version still loads.
 public struct ExerciseDefinition: Codable, Sendable, Identifiable, Hashable {
     public var id: String
     public var name: String
-    public var primaryMuscles: [String]
-    public var secondaryMuscles: [String]
-    public var equipment: String
-    public var movementPattern: String
-    public var unilateral: Bool
-    public var bodyweight: Bool
-    public var instructions: String
+    /// The original English name, which is what most gyms print on the machine.
+    public var englishName: String = ""
+    public var primaryMuscles: [String] = []
+    public var secondaryMuscles: [String] = []
+    /// Coarse grouping used by the library filters: chest, back, shoulders,
+    /// arms, legs, core.
+    public var group: String = "other"
+    public var equipment: String = "bodyweight"
+    public var allEquipment: [String] = []
+    public var movementPattern: String = "other"
+    public var compound: Bool = false
+    public var unilateral: Bool = false
+    public var bodyweight: Bool = false
+    /// Original instructions from the source dataset, in English.
+    public var steps: [String] = []
+    /// File names of the two illustration frames, relaxed then contracted.
+    public var art: [String] = []
+
+    public init(id: String, name: String) { self.id = id; self.name = name }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, englishName, primaryMuscles, secondaryMuscles, group, equipment
+        case allEquipment, movementPattern, compound, unilateral, bodyweight, steps, art
+    }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            (try? container.decodeIfPresent(T.self, forKey: key)).flatMap { $0 } ?? fallback
+        }
+        englishName = value(.englishName, "")
+        primaryMuscles = value(.primaryMuscles, [])
+        secondaryMuscles = value(.secondaryMuscles, [])
+        group = value(.group, "other")
+        equipment = value(.equipment, "bodyweight")
+        allEquipment = value(.allEquipment, [])
+        movementPattern = value(.movementPattern, "other")
+        compound = value(.compound, false)
+        unilateral = value(.unilateral, false)
+        bodyweight = value(.bodyweight, false)
+        steps = value(.steps, [])
+        art = value(.art, [])
+    }
+    /// The frame shown when the exercise is listed: the contracted position,
+    /// which is the more recognisable of the two.
+    public var coverArt: String? { art.count > 1 ? art[1] : art.first }
 }
 public struct StrengthSet: Codable, Sendable, Identifiable, Equatable {
     public var id: UUID = UUID()
@@ -175,6 +217,30 @@ public struct StrengthSet: Codable, Sendable, Identifiable, Equatable {
         self.exerciseID = exerciseID; self.reps = reps; self.weightKg = weightKg; self.rpe = rpe; self.kind = kind; self.completed = completed; self.superset = superset
     }
 }
+/// A logged strength workout. Kept here rather than in the app so the history
+/// engine — which is what makes today's session start from last time's numbers
+/// — can be tested without a running app.
+public struct StrengthSession: Codable, Sendable, Identifiable, Equatable {
+    public var id = UUID()
+    public var start = Date()
+    public var end: Date?
+    public var name: String
+    public var sets: [StrengthSet]
+    public var note = ""
+    public var healthSaved = false
+    public init(id: UUID = UUID(), start: Date = Date(), end: Date? = nil, name: String, sets: [StrengthSet], note: String = "", healthSaved: Bool = false) {
+        self.id = id; self.start = start; self.end = end; self.name = name
+        self.sets = sets; self.note = note; self.healthSaved = healthSaved
+    }
+    public var minutes: Double { max(0, (end ?? Date()).timeIntervalSince(start) / 60) }
+    /// Exercise ids in the order they were first performed.
+    public var exerciseOrder: [String] {
+        var seen: [String] = []
+        for set in sets where !seen.contains(set.exerciseID) { seen.append(set.exerciseID) }
+        return seen
+    }
+}
+
 public struct WorkoutTemplate: Codable, Sendable, Identifiable, Equatable {
     public var id: UUID = UUID()
     public var name: String

@@ -3221,6 +3221,23 @@
         }
       }
     },
+    "daysCalculated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days calculated"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Días calculados"
+          }
+        }
+      }
+    },
     "daysPerWeek": {
       "extractionState": "stale",
       "localizations": {
@@ -4615,6 +4632,23 @@
         }
       }
     },
+    "healthPermissions": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health permissions"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permisos de Salud"
+          }
+        }
+      }
+    },
     "healthRecords": {
       "extractionState": "stale",
       "localizations": {
@@ -4645,6 +4679,91 @@
           "stringUnit": {
             "state": "translated",
             "value": "Guarda informes y biomarcadores en tu dispositivo. Revisa cualquier lectura automática."
+          }
+        }
+      }
+    },
+    "healthReturnedNothing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sync finished without a single sample. Health reports a denied read as an empty result, so this almost always means permissions are off."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La sincronización terminó sin traer ni una muestra. Salud devuelve una lectura denegada como resultado vacío, así que esto casi siempre significa que los permisos están desactivados."
+          }
+        }
+      }
+    },
+    "healthStatus.granted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requested (already asked)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Concedidos (ya preguntado)"
+          }
+        }
+      }
+    },
+    "healthStatus.shouldRequest": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permissions still to request"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falta pedir permisos"
+          }
+        }
+      }
+    },
+    "healthStatus.unavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health unavailable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Salud no disponible"
+          }
+        }
+      }
+    },
+    "healthStatus.unknown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unknown"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconocido"
           }
         }
       }
@@ -5307,6 +5426,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Última calibración"
+          }
+        }
+      }
+    },
+    "lastImport": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last import"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última importación"
           }
         }
       }
@@ -7334,6 +7470,23 @@
         }
       }
     },
+    "openHealthSettings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Veyra's settings"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir ajustes de Veyra"
+          }
+        }
+      }
+    },
     "openPhoneToSync": {
       "extractionState": "stale",
       "localizations": {
@@ -7640,6 +7793,57 @@
         }
       }
     },
+    "probeDetail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reads the last 7 days of every type and shows how many samples Health returns. A 0 for heart rate or steps means that permission is off."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lee los últimos 7 días de cada tipo y muestra cuántas muestras devuelve Salud. Un 0 en frecuencia cardíaca o pasos indica que ese permiso está desactivado."
+          }
+        }
+      }
+    },
+    "probeHealth": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Health reads"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Probar lectura de Salud"
+          }
+        }
+      }
+    },
+    "probing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testing…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Probando…"
+          }
+        }
+      }
+    },
     "productive": {
       "extractionState": "stale",
       "localizations": {
@@ -7874,6 +8078,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Carga acumulada"
+          }
+        }
+      }
+    },
+    "readProbe": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read probe"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prueba de lectura"
           }
         }
       }
@@ -8526,6 +8747,23 @@
       }
     },
     "s": {},
+    "samplesRead": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Samples read"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Muestras leídas"
+          }
+        }
+      }
+    },
     "saturatedFat": {
       "extractionState": "stale",
       "localizations": {
@@ -11225,6 +11463,176 @@
           "stringUnit": {
             "state": "translated",
             "value": "Abre Veyra en el Watch para confirmar la programación. El reloj evalúa movimiento dentro de la ventana; no conoce las fases del sueño en tiempo real. La ejecución depende de watchOS y de que el reloj esté operativo."
+          }
+        }
+      }
+    },
+    "watchLink.appNotInstalled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veyra is not on the watch"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veyra no está en el reloj"
+          }
+        }
+      }
+    },
+    "watchLink.idle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paired"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emparejado"
+          }
+        }
+      }
+    },
+    "watchLink.notPaired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No watch paired"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin reloj emparejado"
+          }
+        }
+      }
+    },
+    "watchLink.reachable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected right now"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado ahora"
+          }
+        }
+      }
+    },
+    "watchLink.unsupported": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not supported"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No compatible"
+          }
+        }
+      }
+    },
+    "watchLinkDetail.appNotInstalled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Veyra on the watch from the Watch app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instala Veyra en el reloj desde la app Watch."
+          }
+        }
+      }
+    },
+    "watchLinkDetail.idle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The watch is paired and Veyra is installed. \"Connected right now\" only appears while the watch app is open; it is not needed to sync."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El reloj está emparejado y Veyra instalada. «Conectado ahora» solo aparece mientras la app del reloj está abierta; no hace falta para sincronizar."
+          }
+        }
+      }
+    },
+    "watchLinkDetail.notPaired": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pair an Apple Watch with this iPhone."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Empareja un Apple Watch con este iPhone."
+          }
+        }
+      }
+    },
+    "watchLinkDetail.reachable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The watch app is open."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La app del reloj está abierta."
+          }
+        }
+      }
+    },
+    "watchLinkDetail.unsupported": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This device cannot pair an Apple Watch."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este dispositivo no admite Apple Watch."
           }
         }
       }

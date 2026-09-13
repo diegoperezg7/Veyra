@@ -112,15 +112,8 @@ struct HealthDocument: Codable, Identifiable, Equatable, Sendable {
     var biomarkers: [Biomarker] = []
 }
 struct Biomarker: Codable, Identifiable, Equatable, Sendable { var id = UUID(); var name: String; var value: Double; var unit: String; var date = Date() }
-struct StrengthSession: Codable, Identifiable, Equatable, Sendable {
-    var id = UUID()
-    var start = Date()
-    var end: Date?
-    var name: String
-    var sets: [StrengthSet]
-    var note = ""
-    var healthSaved = false
-}
+// StrengthSession now lives in PulseCore, next to the engine that reads it.
+// The stored shape is unchanged, so existing records still decode.
 /// Every property carries a default and decoding is explicit, so adding or
 /// removing a preference never makes a stored record undecodable. `LocalStore`
 /// deletes records it cannot decode, and losing preferences that way would
