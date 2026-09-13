@@ -37,7 +37,10 @@ public enum DailyEngine {
             let waking = batch.vitals.filter { $0.id == "hr" && ($0.date < session.start || $0.date > session.end) }.map(\.value)
             return SleepEngine.heartRateDip(nightly: nightly, waking: waking)
         }
-        let sleep = SleepEngine.score(main, need: need, stageHistory: stageHistory, onsetHistory: onsetHistory, hrDip: hrDip)
+        // Regularity is read across the recent nights, not from this one.
+        let recentNights = (history.suffix(28).flatMap(\.sleepSessions) + sessions)
+        let regularity = SleepRegularityEngine.index(sessions: recentNights, calendar: calendar, now: now)
+        let sleep = SleepEngine.score(main, need: need, stageHistory: stageHistory, onsetHistory: onsetHistory, hrDip: hrDip, regularity: regularity)
 
         var summaryVitals: [Vital] = []
         let latestMeasurementKeys: Set<String> = ["weight", "height", "bodyFat", "leanMass", "bmi", "waist", "glucose", "systolic", "diastolic"]
@@ -98,8 +101,13 @@ public enum DailyEngine {
         let todayHRV = dayVitals.filter { $0.id == "hrv" }.map(\.value).filter(\.isFinite)
         let hrvBaseline = BaselineEngine.calculate((histories["hrv"] ?? []) + todayHRV)
 
-        let hr = dayVitals.filter { $0.id == "hr" }
-        let grouped = Dictionary(grouping: hr) { Int($0.date.timeIntervalSince(date) / 900) }
+        // Activation covers the night that belongs to this day, including the
+        // hours before midnight. The energy timeline already starts at the
+        // night's onset, so bounding stress at midnight left the first part of
+        // the chart with a level but nothing to explain it.
+        let stressFrom = main.map { min(date, $0.start) } ?? date
+        let hr = batch.vitals.filter { $0.id == "hr" && $0.date >= stressFrom && $0.date < end }
+        let grouped = Dictionary(grouping: hr) { Int($0.date.timeIntervalSince(stressFrom) / 900) }
         var stress: [TimelinePoint] = []
         for bin in grouped.keys.sorted() {
             // HealthKit heart-rate samples are not guaranteed to arrive twice
@@ -107,7 +115,7 @@ public enum DailyEngine {
             // to calculate a low-confidence point against the personal
             // baseline; dropping it made the stress timeline appear empty.
             guard let points = grouped[bin], !points.isEmpty else { continue }
-            let time = date.addingTimeInterval(Double(bin) * 900)
+            let time = stressFrom.addingTimeInterval(Double(bin) * 900)
             let exercise = workouts.contains { $0.start < time.addingTimeInterval(900) && $0.end > time }
             let nearbyHRV = dayVitals.last { $0.id == "hrv" && abs($0.date.timeIntervalSince(time)) <= 1800 }
             let movement = context.movement[time] ?? 0

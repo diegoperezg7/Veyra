@@ -217,3 +217,45 @@ final class PerformanceEngineTests: XCTestCase {
         XCTAssertGreaterThan(with.score(.strain).value ?? 0, without.score(.strain).value ?? 0)
     }
 }
+
+extension PerformanceEngineTests {
+    /// The index must read 100 for an identical schedule and fall as the
+    /// schedule scatters. A circular standard deviation cannot tell a run of
+    /// alternating early and late nights from a consistently shifted one.
+    func testSleepRegularityIndexRewardsRepeatedSchedules() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let base = calendar.startOfDay(for: Date(timeIntervalSince1970: 1_700_000_000))
+
+        func nights(offsets: [Double]) -> [SleepSession] {
+            offsets.enumerated().map { index, shift in
+                let start = base.addingTimeInterval(Double(index) * 86_400 + 23 * 3600 + shift * 3600)
+                return SleepSession(segments: [.init(start: start, end: start.addingTimeInterval(7 * 3600), stage: .core)])
+            }
+        }
+        let now = base.addingTimeInterval(15 * 86_400)
+        let identical = SleepRegularityEngine.index(sessions: nights(offsets: Array(repeating: 0, count: 14)), calendar: calendar, now: now)
+        let scattered = SleepRegularityEngine.index(sessions: nights(offsets: [0, 4, -3, 5, -4, 3, -5, 2, -2, 4, -4, 5, -3, 0]), calendar: calendar, now: now)
+
+        XCTAssertNotNil(identical)
+        XCTAssertNotNil(scattered)
+        XCTAssertGreaterThan(identical!, 95)
+        XCTAssertLessThan(scattered!, identical! - 15)
+        XCTAssertGreaterThanOrEqual(scattered!, 0)
+
+        // Too few days to say anything.
+        XCTAssertNil(SleepRegularityEngine.index(sessions: nights(offsets: [0, 0, 0]), calendar: calendar,
+                                                 now: base.addingTimeInterval(3 * 86_400)))
+    }
+
+    /// The 12 bpm abnormal cut-off must land unambiguously low, not mid-scale.
+    func testHeartRateRecoveryScoresAgainstTheClinicalThreshold() {
+        XCTAssertEqual(HeartRateRecoveryEngine.score(12)!, 25, accuracy: 0.001)
+        XCTAssertLessThan(HeartRateRecoveryEngine.score(8)!, 25)
+        XCTAssertGreaterThan(HeartRateRecoveryEngine.score(24)!, 50)
+        XCTAssertLessThanOrEqual(HeartRateRecoveryEngine.score(90)!, 100)
+        XCTAssertNil(HeartRateRecoveryEngine.score(-1))
+        XCTAssertEqual(HeartRateRecoveryEngine.band(9), "hrrPoor")
+        XCTAssertEqual(HeartRateRecoveryEngine.band(35), "hrrExcellent")
+    }
+}

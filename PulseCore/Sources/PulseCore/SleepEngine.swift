@@ -25,7 +25,10 @@ public enum SleepEngine {
         return groups.map { SleepSession(segments: $0) }.filter { $0.asleepMinutes >= 15 }
     }
     private static func priority(_ stage: SleepStage) -> Int { switch stage { case .awake: 6; case .deep, .rem, .core: 5; case .unspecified: 2; case .inBed: 1 } }
-    public static func score(_ session: SleepSession?, need: Double, stageHistory: [Double] = [], onsetHistory: [Double] = [], hrDip: Double? = nil) -> ScoreResult {
+    /// - Parameter regularity: Sleep Regularity Index, 0–100, when enough
+    ///   consecutive days exist. Preferred over the circular deviation of
+    ///   bedtimes, which only measures spread around your own average.
+    public static func score(_ session: SleepSession?, need: Double, stageHistory: [Double] = [], onsetHistory: [Double] = [], hrDip: Double? = nil, regularity: Double? = nil) -> ScoreResult {
         guard let session, session.asleepMinutes > 0, need > 0 else { return .unavailable }
         let duration = Statistics.clamp(session.asleepMinutes / need * 100)
         let efficiency = Statistics.clamp(session.asleepMinutes / max(1, session.bedMinutes) * 100)
@@ -33,7 +36,9 @@ public enum SleepEngine {
         let continuity = Statistics.clamp(100 - max(0, awake - 10) * 0.8)
         let restorative = session.segments.filter { $0.stage == .deep || $0.stage == .rem }.reduce(0) { $0 + $1.minutes } / session.asleepMinutes
         let stageScore: Double? = BaselineEngine.calculate(stageHistory).flatMap { $0.count >= 7 && restorative > 0 ? Statistics.clamp(85 - abs($0.z(restorative, epsilon: 0.03)) * 15) : nil }
-        let consistency = Statistics.circularDeviation(onsetHistory).map { Statistics.clamp(100 - $0 * 0.6) }
+        // The regularity index where it exists; the spread of bedtimes only as
+        // a stand-in until there are enough consecutive days for the index.
+        let consistency = regularity ?? Statistics.circularDeviation(onsetHistory).map { Statistics.clamp(100 - $0 * 0.6) }
         let contributors: [Contributor] = [
             .init("duration", value: session.asleepMinutes, score: duration, weight: 35, unit: "min"),
             .init("efficiency", value: efficiency, score: efficiency, weight: 20, unit: "%"),

@@ -59,7 +59,7 @@ enum SampleData {
                 .init(id: "bmi", value: bmi, unit: "BMI", date: date)
             ]
 
-            let stress = stressTimeline(on: date, wake: session.end, workouts: workouts, generator: &state)
+            let stress = stressTimeline(on: date, session: session, workouts: workouts, generator: &state)
             let energy = energyTimeline(date: date, session: session, stress: stress, workouts: workouts,
                                         recovery: recovery, sleep: sleepScore, previousEvening: previousEvening, now: now)
             previousEvening = energy.last?.value ?? previousEvening
@@ -147,17 +147,21 @@ enum SampleData {
                      source: "Apple Watch", zoneMinutes: [6, 12, minutes * 0.4, minutes * 0.2, 3])
     }
 
-    private static func stressTimeline(on date: Date, wake: Date, workouts: [WorkoutSummary], generator: inout Generator) -> [TimelinePoint] {
+    private static func stressTimeline(on date: Date, session: SleepSession, workouts: [WorkoutSummary], generator: inout Generator) -> [TimelinePoint] {
         var points: [TimelinePoint] = []
-        var time = wake
+        // Starts with the night, not at waking: activation is measured while
+        // asleep too, and it is the calmest part of the day.
+        var time = session.start
         let end = date.addingTimeInterval(23 * 3600)
         while time < end {
+            let asleep = time >= session.start && time <= session.end
             let hour = Double(Calendar.current.component(.hour, from: time))
-            // Morning ramp, an afternoon peak, an evening decline.
-            let base = 24 + 22 * max(0, sin((hour - 6) / 16 * .pi))
+            let base = asleep
+                ? 9 + generator.next(0, 6)
+                : 24 + 22 * max(0, sin((hour - 6) / 16 * .pi))
             let exercising = workouts.contains { $0.start <= time && $0.end >= time }
             if !exercising {
-                points.append(.init(date: time, value: Statistics.clamp(base + generator.next(-9, 12))))
+                points.append(.init(date: time, value: Statistics.clamp(base + generator.next(asleep ? -4 : -9, asleep ? 5 : 12))))
             }
             time = time.addingTimeInterval(900)
         }

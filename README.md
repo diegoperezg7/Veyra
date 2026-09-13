@@ -67,8 +67,12 @@ the specific reasons it is not higher.
 | **Energy reserves** | Body battery, 0–100 | 15-minute simulation from the onset of the night |
 
 Every score keeps its components, their weights and its confidence. The full
-formulas, with references, are in
-[`Documentation/ALGORITHMS.md`](Documentation/ALGORITHMS.md).
+formulas are in [`Documentation/ALGORITHMS.md`](Documentation/ALGORITHMS.md),
+and [`Documentation/EVIDENCE.md`](Documentation/EVIDENCE.md) audits every one of
+them against the literature — separating what is **published**, what is
+**derived** from published direction, and what is a **design decision** of ours
+with no published equivalent. The body battery and the recovery weights fall in
+that last category, and the document says so.
 
 ### Body battery
 
