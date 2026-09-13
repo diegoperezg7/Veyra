@@ -175,3 +175,35 @@ scaled by 0.6 and the missing anchor is named on screen.
 
 The estimate is stored and recalibrated weekly, not recomputed on every redraw,
 so the displayed number is stable between recalibrations. A button forces one.
+
+
+## Stress — version 3 (2026-09-13)
+
+The previous version compared the day's heart rate against a baseline built
+from *resting* heart-rate samples. Awake, you are always above your resting
+rate, so the z-score saturated at its ±3 bound and the result sat at
+`30 + 3 × 22 = 96` for essentially the whole day.
+
+That also emptied the body battery: the energy simulation drains
+`((stress − 35) / 65)^1.5 × 2.5` points every fifteen minutes, which at a pinned
+96 is roughly nine points an hour, or over a hundred across a waking day.
+
+Activation is now heart-rate reserve, the standard framing:
+
+    reserve    = clamp((hr − resting) / (maximum − resting), 0, 1)
+    activation = clamp(reserve / 0.45 × 100)
+
+Reserve is bounded by construction, so it cannot pin, and it means the same
+thing for a trained and an untrained heart. Forty-five percent of reserve is
+treated as full activation; beyond that the interval is effort rather than
+stress, and workout intervals are excluded outright.
+
+Weights: heart rate 60, HRV 30 (only once the personal baseline has at least
+three observations), movement 10. Movement is context rather than a signal —
+a raised rate that movement explains is discounted, not counted.
+
+The resting reference is the day's own resting sample where one exists, then the
+personal median, then the fifth percentile of the day's actual samples.
+
+Regression test: `testStressReadsHeartRateReserveAndCannotPin` asserts that
+ordinary waking rates from 70 to 100 bpm never read as extreme activation.

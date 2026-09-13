@@ -158,6 +158,8 @@ struct MetricDetailView: View {
 
                 NarrativeCard(metric: metric, snapshot: snapshot, history: model.history)
 
+                if metric == .stress { stressDetails }
+
                 Card {
                     HStack {
                         Text(L("trends")).font(AppTypography.cardTitle)
@@ -174,7 +176,6 @@ struct MetricDetailView: View {
 
                 if metric == .sleep { sleepDetails }
                 if metric == .strain { strainDetails }
-                if metric == .stress { stressDetails }
 
                 if !score.contributors.isEmpty { ContributorsCard(metric: metric, score: score) }
                 LimitationsCard(score: score)
@@ -205,13 +206,14 @@ struct MetricDetailView: View {
 
     private var stressDetails: some View {
         Card {
-            Text(L("timeline")).font(AppTypography.cardTitle)
-            MetricTimeline(points: snapshot.stress, metric: .stress, height: 200)
+            Text(L("acrossTheDay")).font(AppTypography.cardTitle)
+            StressDayChart(points: snapshot.stress)
             if snapshot.stress.isEmpty {
                 Label(L("stressCalibrating"), systemImage: "clock.badge.checkmark").font(.subheadline.weight(.medium))
                 Text(L("stressCalibrationDetail")).font(.footnote).foregroundStyle(.secondary)
             }
             Text(L("stressExplanation")).font(.footnote).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -257,7 +259,7 @@ private struct MetricHeroCard: View {
                 }
                 Spacer(minLength: 8)
                 if metric == .stress {
-                    MetricGauge(value: score.value, size: 112, caption: score.value.map(MetricNarrator.band))
+                    MetricGauge(value: score.value, size: 112, caption: score.value.map(StressEngine.band))
                 } else {
                     ScoreRing(metric: metric, value: score.value, size: 104, onScene: true)
                 }

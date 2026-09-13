@@ -8,22 +8,61 @@ final class PerformanceEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(StrainEngine.score(rawLoad: .nan, history: [100, 110, 120]), 0)
     }
 
-    func testStressCanUseASingleObservedHeartRateSample() {
-        let heartRateBaseline = Baseline(median: 60, mad: 2, count: 14)
+    func testStressReadsHeartRateReserveAndCannotPin() {
         let hrvBaseline = Baseline(median: 45, mad: 5, count: 14)
-        let value = StressEngine.calculate(hr: 72, hrBaseline: heartRateBaseline, hrv: nil, hrvBaseline: hrvBaseline, movement: 0, workout: false)
-        XCTAssertNotNil(value)
-        XCTAssertTrue(value!.isFinite)
-        XCTAssertLessThanOrEqual(value!, 100)
+        func stress(_ hr: Double, movement: Double = 0) -> Double? {
+            StressEngine.calculate(hr: hr, resting: 55, maximum: 185, hrv: nil,
+                                   hrvBaseline: hrvBaseline, movement: movement, workout: false)
+        }
+        // At rest the reading sits near the floor, not near the ceiling.
+        let atRest = stress(58)
+        XCTAssertNotNil(atRest)
+        XCTAssertLessThan(atRest!, 15)
+
+        // It rises with reserve and stays inside the scale at the extreme.
+        XCTAssertLessThan(stress(58)!, stress(85)!)
+        XCTAssertLessThan(stress(85)!, stress(130)!)
+        XCTAssertLessThanOrEqual(stress(220)!, 100)
+
+        // Regression: the previous version compared the day's heart rate to a
+        // resting baseline, saturating the ±3 bound and pinning the result at
+        // 30 + 3 × 22 = 96 all day. Ordinary waking rates must not do that.
+        for rate in [70.0, 75, 80, 90, 100] {
+            XCTAssertLessThan(stress(rate)!, 90, "\(rate) bpm should not read as extreme activation")
+        }
+
+        // Movement explains a raised rate, so it lowers the reading.
+        XCTAssertLessThan(stress(95, movement: 1)!, stress(95, movement: 0)!)
+
+        // Workouts are effort, not activation.
+        XCTAssertNil(StressEngine.calculate(hr: 150, resting: 55, maximum: 185, hrv: nil,
+                                            hrvBaseline: nil, movement: 0, workout: true))
+        // Without a resting reference or a usable maximum there is no reserve.
+        XCTAssertNil(StressEngine.calculate(hr: 80, resting: nil, maximum: 185, hrv: nil,
+                                            hrvBaseline: nil, movement: 0, workout: false))
+        XCTAssertNil(StressEngine.calculate(hr: 80, resting: 55, maximum: 60, hrv: nil,
+                                            hrvBaseline: nil, movement: 0, workout: false))
     }
 
-    func testStressUsesProvisionalReferenceBeforeSevenDayCalibration() {
-        let baseline = Baseline(median: 60, mad: 3, count: 3)
-        let value = StressEngine.calculate(hr: 68, hrBaseline: baseline, hrv: nil, hrvBaseline: nil, movement: 0, workout: false)
-        XCTAssertNotNil(value)
-        XCTAssertTrue(value!.isFinite)
-        XCTAssertGreaterThanOrEqual(value!, 0)
-        XCTAssertLessThanOrEqual(value!, 100)
+    /// The day's account must come from the level actually reached, because the
+    /// modelled terms and the drawn line diverge wherever the value clamps.
+    func testEnergySummaryReadsTheLevelsNotTheModelledTerms() {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        func point(_ minute: Int, _ value: Double, asleep: Bool = false) -> EnergyPoint {
+            .init(date: start.addingTimeInterval(Double(minute) * 60), value: value, asleep: asleep)
+        }
+        let summary = EnergySummaryEngine.summarise([
+            point(0, 30, asleep: true), point(15, 50, asleep: true), point(30, 70, asleep: true),
+            point(45, 60), point(60, 55), point(75, 65)
+        ])
+        XCTAssertEqual(summary.charged, 50, accuracy: 0.001)   // 20 + 20 + 10
+        XCTAssertEqual(summary.spent, 15, accuracy: 0.001)     // 10 + 5
+        // The final run is still open, so its peak is the current level.
+        XCTAssertEqual(summary.lastChargePeak, 65)
+        XCTAssertEqual(summary.sleepSpan?.lowerBound, start)
+        XCTAssertEqual(summary.chargingSpans.count, 2)
+
+        XCTAssertEqual(EnergySummaryEngine.summarise([]).charged, 0)
     }
 
     func testWellnessAgeRequiresActualObservedSignals() {

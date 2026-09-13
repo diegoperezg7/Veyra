@@ -48,14 +48,55 @@ public enum CardioLoadEngine {
     }
 }
 public enum StressEngine {
-    public static func calculate(hr: Double?, hrBaseline: Baseline?, hrv: Double?, hrvBaseline: Baseline?, movement: Double, workout: Bool) -> Double? {
-        // Three finite observations are enough for a provisional personal
-        // reference. The dashboard still marks this result as low confidence
-        // until the normal seven-day calibration window is available.
-        guard !workout, let hr, let hrBaseline, hrBaseline.count >= 3 else { return nil }
-        let h = Statistics.clamp(30 + hrBaseline.z(hr, epsilon: 5) * 22)
-        let v = hrv.flatMap { current in hrvBaseline.flatMap { $0.count >= 3 ? Statistics.clamp(30 - $0.z(current, epsilon: 3) * 22) : nil } }
-        return ScoreMath.weighted([.init("hr", score: h, weight: 55), .init("hrv", score: v, weight: 35), .init("movement", score: Statistics.clamp(h - movement * 40), weight: 10)], confidence: .low).value
+    /// Physiological activation from heart-rate reserve.
+    ///
+    /// The previous version compared the day's heart rate against the *resting*
+    /// heart-rate baseline. Awake, you are always above your resting rate, so
+    /// the deviation saturated at its ±3 bound and the result sat at
+    /// `30 + 3 × 22 = 96` all day — and, because energy drains on stress, it
+    /// emptied the body battery along with it.
+    ///
+    /// Reserve is the standard framing (Karvonen): where the current rate sits
+    /// between resting and maximum. It is bounded by construction, so it cannot
+    /// pin, and it means the same thing for a trained and an untrained heart.
+    ///
+    /// - Parameters:
+    ///   - movement: 0–1 activity in the interval. An elevated rate that
+    ///     movement explains is not activation, so it is discounted.
+    public static func calculate(hr: Double?, resting: Double?, maximum: Double, hrv: Double?, hrvBaseline: Baseline?, movement: Double, workout: Bool) -> Double? {
+        guard !workout, let hr, hr.isFinite, let resting, resting.isFinite,
+              maximum.isFinite, maximum > resting + 20 else { return nil }
+        let reserve = Statistics.clamp((hr - resting) / (maximum - resting), 0, 1)
+        // 45% of reserve is treated as full activation; beyond that the
+        // interval is effort rather than stress and is excluded anyway.
+        let activation = Statistics.clamp(reserve / 0.45 * 100)
+
+        // Suppressed variability adds to the reading, but only once the
+        // personal baseline has something to say.
+        let variability = hrv.flatMap { current in
+            hrvBaseline.flatMap { baseline in
+                baseline.count >= 3 ? Statistics.clamp(50 - baseline.z(current, epsilon: 3) * 20) : nil
+            }
+        }
+        let explained = Statistics.clamp(movement.isFinite ? movement : 0, 0, 1)
+        return ScoreMath.weighted([
+            .init("hr", value: hr, score: activation, weight: 60, unit: "bpm"),
+            .init("hrv", value: hrv, score: variability, weight: 30, unit: "ms"),
+            // Movement is context: it pulls the reading down, because a raised
+            // rate you can account for is not the same signal.
+            .init("movement", value: explained, score: Statistics.clamp(activation - explained * 55), weight: 10)
+        ], confidence: .low).value
+    }
+
+    /// Five bands for the day chart, low to high.
+    public static func band(_ value: Double) -> String {
+        switch value {
+        case ..<25: "veryLow"
+        case ..<40: "low"
+        case ..<60: "moderate"
+        case ..<78: "high"
+        default: "veryHigh"
+        }
     }
 }
 public enum EnergyBankEngine {

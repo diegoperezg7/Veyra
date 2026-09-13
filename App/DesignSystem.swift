@@ -83,8 +83,53 @@ enum AppColors {
         case ..<0.15: danger
         case ..<0.35: warn
         case ..<0.60: .adaptive(light: 0x8A8F00, dark: 0xD8E05A)
-        default: accentVivid
+        default: .adaptive(light: 0x3FA64B, dark: 0x6EDC7A)
         }
+    }
+    /// Energy level as a colour: depleted is red, full is green. Used as a
+    /// vertical gradient over a 0–100 plot so the line is tinted by its height.
+    static func energyLevel(_ fraction: Double) -> Color {
+        let stops: [(Double, Color)] = [
+            (0.00, danger),
+            (0.30, .adaptive(light: 0xD98A19, dark: 0xFFB454)),
+            (0.55, .adaptive(light: 0xB8A800, dark: 0xE8DC5A)),
+            (1.00, .adaptive(light: 0x3FA64B, dark: 0x6EDC7A))
+        ]
+        return interpolate(stops, fraction)
+    }
+    /// Activation as a colour: blue when very low, then green, yellow, orange
+    /// and red. Deliberately separate from the generic scale, which starts at
+    /// green and so had nothing left to express "unusually calm".
+    static func stressLevel(_ fraction: Double) -> Color {
+        let stops: [(Double, Color)] = [
+            (0.00, .adaptive(light: 0x2C7FD4, dark: 0x5FB4F5)),
+            (0.25, .adaptive(light: 0x2E9E5B, dark: 0x5FD98C)),
+            (0.50, .adaptive(light: 0xC9A400, dark: 0xF2D24C)),
+            (0.75, .adaptive(light: 0xD97A1A, dark: 0xFF9E52)),
+            (1.00, danger)
+        ]
+        return interpolate(stops, fraction)
+    }
+    /// Top-to-bottom gradient for a 0–100 plot, so a line is coloured by height.
+    ///
+    /// `fade` ramps the opacity down towards the baseline. An area fill spans
+    /// from the line to zero, so a solid height gradient painted the bottom of
+    /// every column in the low-end colour — a full battery still showed a red
+    /// wash under it. Fading means the colour is only visible near the line,
+    /// which is where it means something.
+    static func verticalScale(_ colour: @escaping (Double) -> Color, fade: Bool = false) -> LinearGradient {
+        LinearGradient(
+            stops: stride(from: 1.0, through: 0.0, by: -0.1).map { level in
+                .init(color: colour(level).opacity(fade ? max(0, level - 0.08) : 1),
+                      location: 1 - level)
+            },
+            startPoint: .top, endPoint: .bottom)
+    }
+    private static func interpolate(_ stops: [(Double, Color)], _ fraction: Double) -> Color {
+        let f = min(1, max(0, fraction))
+        guard let upper = stops.firstIndex(where: { $0.0 >= f }), upper > 0 else { return stops[0].1 }
+        let span = stops[upper].0 - stops[upper - 1].0
+        return stops[upper].1.mix(with: stops[upper - 1].1, by: span > 0 ? (stops[upper].0 - f) / span : 0)
     }
 }
 
@@ -372,5 +417,21 @@ extension Color {
         a.getRed(&ar, green: &ag, blue: &ab, alpha: &aa)
         b.getRed(&br, green: &bg, blue: &bb, alpha: &ba)
         return Color(red: ar + (br - ar) * t, green: ag + (bg - ag) * t, blue: ab + (bb - ab) * t)
+    }
+}
+
+/// Diagonal hatching, used for the unfilled part of the battery so empty reads
+/// as "not yet charged" rather than as a plain gap.
+struct DiagonalHatch: Shape {
+    var spacing: CGFloat = 7
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        var x = -rect.height
+        while x < rect.width {
+            path.move(to: CGPoint(x: x, y: rect.maxY))
+            path.addLine(to: CGPoint(x: x + rect.height, y: rect.minY))
+            x += spacing
+        }
+        return path
     }
 }

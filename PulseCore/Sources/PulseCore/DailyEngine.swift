@@ -90,6 +90,11 @@ public enum DailyEngine {
             let mad = Statistics.median(dayHeartRates.map { abs($0 - lowReference) }) ?? 0
             hrBaseline = Baseline(median: lowReference, mad: max(1, mad), count: dayHeartRates.count)
         }
+        // The day's own resting rate where it exists, else the personal median,
+        // else the low tail of the day's samples.
+        let restingReference: Double? = todayResting.last
+            ?? hrBaseline?.median
+            ?? Statistics.percentile(dayHeartRates, 0.05)
         let todayHRV = dayVitals.filter { $0.id == "hrv" }.map(\.value).filter(\.isFinite)
         let hrvBaseline = BaselineEngine.calculate((histories["hrv"] ?? []) + todayHRV)
 
@@ -106,7 +111,14 @@ public enum DailyEngine {
             let exercise = workouts.contains { $0.start < time.addingTimeInterval(900) && $0.end > time }
             let nearbyHRV = dayVitals.last { $0.id == "hrv" && abs($0.date.timeIntervalSince(time)) <= 1800 }
             let movement = context.movement[time] ?? 0
-            if let value = StressEngine.calculate(hr: Statistics.median(points.map(\.value)), hrBaseline: hrBaseline, hrv: nearbyHRV?.value, hrvBaseline: hrvBaseline, movement: movement, workout: exercise) { stress.append(.init(date: time, value: value)) }
+            // Reserve needs a resting rate and a maximum, not a baseline of
+            // resting samples to deviate from.
+            if let value = StressEngine.calculate(hr: Statistics.median(points.map(\.value)),
+                                                  resting: restingReference, maximum: maximumHR,
+                                                  hrv: nearbyHRV?.value, hrvBaseline: hrvBaseline,
+                                                  movement: movement, workout: exercise) {
+                stress.append(.init(date: time, value: value))
+            }
         }
 
         let detail = energyTimeline(date: date, end: end, now: now, main: main, sessions: sessions,

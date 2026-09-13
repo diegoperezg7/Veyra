@@ -91,6 +91,23 @@
         }
       }
     },
+    "acrossTheDay": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Across the day"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A lo largo del día"
+          }
+        }
+      }
+    },
     "active": {
       "extractionState": "stale",
       "localizations": {
@@ -789,6 +806,40 @@
         }
       }
     },
+    "batteryBandsDetail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shaded bands mark when you were asleep and when you were training; the line is your level at that moment."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las franjas de color marcan cuándo dormías y cuándo entrenabas; la línea es tu nivel en ese momento."
+          }
+        }
+      }
+    },
+    "batteryBandsDetailEstimated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shaded bands mark when you were asleep and when you were training; the line is your level at that moment. Where no stress measurement exists the level is estimated."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las franjas de color marcan cuándo dormías y cuándo entrenabas; la línea es tu nivel en ese momento. En los tramos sin medición de estrés el nivel se estima."
+          }
+        }
+      }
+    },
     "batteryDrain": {
       "extractionState": "stale",
       "localizations": {
@@ -874,6 +925,23 @@
         }
       }
     },
+    "batteryLastCharge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last charged to {0} % at {1}"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Última carga hasta {0} % a las {1}"
+          }
+        }
+      }
+    },
     "batteryMethod": {
       "extractionState": "stale",
       "localizations": {
@@ -887,6 +955,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Estimación experimental de 0 a 100. Parte del sueño y la recuperación; baja con el tiempo despierto, el estrés y el ejercicio, y sube con las siestas o el descanso observado. Los cambios mostrados son el balance neto de cada intervalo de 15 minutos. No mide reservas físicas ni reproduce algoritmos privados."
+          }
+        }
+      }
+    },
+    "batteryOverTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your battery hour by hour"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu batería hora a hora"
+          }
+        }
+      }
+    },
+    "batteryOverTimeSubtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How it charged and drained from the moment you went to bed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cómo se ha ido cargando y gastando desde que te acostaste"
           }
         }
       }
@@ -955,6 +1057,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Estrés"
+          }
+        }
+      }
+    },
+    "batteryTotalCharged": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total charged"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total cargado"
+          }
+        }
+      }
+    },
+    "batteryTotalSpent": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total spent"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total gastado"
           }
         }
       }
@@ -3084,6 +3220,23 @@
         }
       }
     },
+    "energyLevel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Energy level"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nivel de energía"
+          }
+        }
+      }
+    },
     "equipment": {
       "extractionState": "stale",
       "localizations": {
@@ -3560,6 +3713,7 @@
         }
       }
     },
+    "from": {},
     "fromAppleHealth": {
       "extractionState": "manual",
       "localizations": {
@@ -4619,13 +4773,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Asleep"
+            "value": "While you slept"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dormido"
+            "value": "Mientras dormías"
           }
         }
       }
@@ -4636,13 +4790,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exercise"
+            "value": "While you trained"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ejercicio"
+            "value": "Mientras entrenabas"
           }
         }
       }
@@ -8834,13 +8988,30 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Estimated physiological activation. Exercise and intervals without sufficient samples are not represented as resting stress."
+            "value": "Measures where your heart rate sits between your resting and maximum rates, adjusted for variability and for movement that would explain a raised pulse. Workouts are excluded: that is effort, not activation."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Activación fisiológica estimada. Los períodos de ejercicio y los intervalos sin muestras suficientes no se representan como estrés en reposo."
+            "value": "Mide dónde está tu frecuencia cardíaca entre tu reposo y tu máximo, corregido por la variabilidad y por el movimiento que explique una pulsación alta. Los entrenamientos quedan fuera: eso es esfuerzo, no activación."
+          }
+        }
+      }
+    },
+    "stressLevel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stress"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estrés"
           }
         }
       }
@@ -9270,6 +9441,7 @@
         }
       }
     },
+    "to": {},
     "today": {
       "extractionState": "stale",
       "localizations": {

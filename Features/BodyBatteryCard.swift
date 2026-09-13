@@ -48,71 +48,58 @@ struct BatteryStrip: View {
 }
 
 
-/// A battery cell filled to the level, with the percentage inside it. The
-/// number is drawn twice — once in ink, once in white clipped to the fill — so
-/// it stays legible whether the level has reached it or not, without having to
-/// guess a single colour that works over both.
+/// A battery cell: thick bezel, terminal, gradient fill, hatched remainder and
+/// the level inside it. Modelled on how a charge indicator is normally drawn,
+/// because that is the vocabulary the number belongs to.
 struct BatteryGauge: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var value: Double?
-    var height: CGFloat = 96
-    /// Faint rule showing the level on waking.
-    var morning: Double? = nil
+    var height: CGFloat = 118
 
     @State private var filled: Double = 0
     private var fraction: Double { min(1, max(0, (value ?? 0) / 100)) }
     private var tint: Color { AppColors.battery(fraction) }
 
     var body: some View {
-        HStack(spacing: height * 0.06) {
+        HStack(spacing: height * 0.045) {
             GeometryReader { proxy in
                 let w = proxy.size.width, h = proxy.size.height
                 let radius = h * 0.26
-                let inset = h * 0.085
-                let innerRadius = radius - inset * 0.7
-                let fillWidth = max(0, (w - inset * 2) * filled)
+                let bezel = h * 0.075
+                let innerRadius = radius - bezel * 0.8
+                let innerWidth = w - bezel * 2
+                // Enough charge to hold the figure comfortably inside it.
+                let fillCentred = filled >= 0.42
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .fill(AppColors.surfaceRaised)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                                .strokeBorder(AppColors.border, lineWidth: bezel * 0.8)
+                        )
+                    // Remainder: hatched, so "empty" is visibly part of the cell.
+                    DiagonalHatch(spacing: h * 0.11)
+                        .stroke(AppColors.border, lineWidth: 1.5)
+                        .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+                        .padding(bezel)
+                        .opacity(0.9)
                     RoundedRectangle(cornerRadius: innerRadius, style: .continuous)
-                        .fill(LinearGradient(colors: [tint.mix(with: .white, by: 0.28), tint],
-                                             startPoint: .leading, endPoint: .trailing))
-                        .frame(width: fillWidth)
-                        .padding(inset)
-                    if let morning, morning.isFinite, value != nil {
-                        Rectangle()
-                            .fill(AppColors.ink.opacity(0.28))
-                            .frame(width: 1.5)
-                            .padding(.vertical, inset * 2)
-                            .offset(x: inset + (w - inset * 2) * min(1, max(0, morning / 100)))
-                    }
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(AppColors.border, lineWidth: 2)
-                    // Left-aligned inside the cell, so at any usable level the
-                    // number sits well within the fill rather than straddling
-                    // its edge. Below that the ink copy underneath shows through.
-                    label(height: h)
-                        .padding(.leading, inset * 3)
-                        .frame(width: w, height: h, alignment: .leading)
-                        .overlay(alignment: .leading) {
-                            label(height: h, onFill: true)
-                                .padding(.leading, inset * 3)
-                                .frame(width: w, height: h, alignment: .leading)
-                                .mask(alignment: .leading) {
-                                    Rectangle().frame(width: fillWidth + inset)
-                                }
-                        }
+                        .fill(LinearGradient(colors: [tint.mix(with: .white, by: 0.22), tint],
+                                             startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: max(0, innerWidth * filled))
+                        .padding(bezel)
+                    // Centred inside the charged portion rather than inside the
+                    // cell: centred in the cell, the "%" spilled past the fill
+                    // edge and went white on the near-white hatching.
+                    label(height: h, onFill: fillCentred)
+                        .frame(width: fillCentred ? innerWidth * filled : w, height: h)
+                        .padding(.leading, fillCentred ? bezel : 0)
                 }
             }
             .frame(height: height)
-            // The terminal, so it reads as a cell and not a progress bar.
             RoundedRectangle(cornerRadius: height * 0.06, style: .continuous)
-                .fill(AppColors.surfaceRaised)
-                .overlay(
-                    RoundedRectangle(cornerRadius: height * 0.06, style: .continuous)
-                        .strokeBorder(AppColors.border, lineWidth: 2)
-                )
-                .frame(width: height * 0.09, height: height * 0.34)
+                .fill(AppColors.border)
+                .frame(width: height * 0.06, height: height * 0.28)
         }
         .onAppear { animate() }
         .onChange(of: fraction) { _, _ in animate() }
@@ -121,12 +108,20 @@ struct BatteryGauge: View {
         .accessibilityValue(value.map { number($0) + "%" } ?? L("noData"))
     }
 
-    private func label(height h: CGFloat, onFill: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 2) {
-            Text(number(value))
-                .font(.system(size: h * 0.46, weight: .bold))
-                .monospacedDigit().contentTransition(.numericText())
-            Text("%").font(.system(size: h * 0.22, weight: .semibold)).opacity(0.75)
+    /// White once the fill has passed the middle, ink before that, so the
+    /// figure always has contrast behind it.
+    private func label(height h: CGFloat, onFill: Bool) -> some View {
+        VStack(spacing: -h * 0.04) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(number(value))
+                    .font(.system(size: h * 0.40, weight: .bold))
+                    .monospacedDigit().contentTransition(.numericText())
+                Text("%").font(.system(size: h * 0.18, weight: .semibold)).opacity(0.85)
+            }
+            .lineLimit(1).minimumScaleFactor(0.6)
+            Image(systemName: "bolt.fill")
+                .font(.system(size: h * 0.12, weight: .bold))
+                .opacity(0.9)
         }
         .foregroundStyle(onFill ? Color.white : AppColors.ink)
     }
@@ -134,7 +129,30 @@ struct BatteryGauge: View {
     private func animate() {
         guard value != nil else { filled = 0; return }
         guard !reduceMotion else { filled = fraction; return }
-        withAnimation(.smooth(duration: 0.7)) { filled = fraction }
+        withAnimation(.smooth(duration: 0.75)) { filled = fraction }
+    }
+}
+
+/// The two totals under the cell: everything gained, everything lost.
+struct EnergyTotals: View {
+    let summary: EnergySummary
+    var body: some View {
+        HStack(spacing: 12) {
+            total(summary.charged, positive: true, title: "batteryTotalCharged")
+            total(summary.spent, positive: false, title: "batteryTotalSpent")
+        }
+    }
+    private func total(_ value: Double, positive: Bool, title: String) -> some View {
+        VStack(spacing: 4) {
+            Text((positive ? "+" : "−") + number(value) + "%")
+                .font(.title2.weight(.bold)).monospacedDigit()
+                .foregroundStyle(positive ? AppColors.ageBetter : AppColors.danger)
+            Text(L(title)).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(AppColors.surface, in: .rect(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(AppColors.border, lineWidth: 1))
     }
 }
 
@@ -184,9 +202,8 @@ struct BodyBatteryCompactCard: View {
     }
 }
 
-/// The expanded battery, split into a scene header and plain surfaces for the
-/// chart and the method. Drawing a chart straight onto a photograph made both
-/// unreadable: the scene now stops where the data begins.
+/// The energy screen: the cell and its account at the top, then the day's level
+/// with the activation that drove it underneath, sharing one time axis.
 struct BodyBatteryCard: View {
     let snapshot: DailySnapshot
     var expanded = false
@@ -196,42 +213,50 @@ struct BodyBatteryCard: View {
     private var points: [TimelinePoint] {
         detail.isEmpty ? snapshot.energy.filter { $0.value.isFinite }.sorted { $0.date < $1.date } : detail.map(\.timeline)
     }
+    private var summary: EnergySummary { EnergySummaryEngine.summarise(detail) }
     private var selected: TimelinePoint? {
         guard let selectedTime else { return points.last }
         return points.min { abs($0.date.timeIntervalSince(selectedTime)) < abs($1.date.timeIntervalSince(selectedTime)) }
     }
-    private var morning: Double? {
-        detail.last(where: \.asleep).flatMap { last in detail.first { $0.date > last.date }?.value } ?? detail.first?.value
-    }
-    private var breakdown: (sleep: Double, rest: Double, stress: Double, load: Double, waking: Double) {
-        detail.reduce((0.0, 0.0, 0.0, 0.0, 0.0)) { total, point in
-            (total.0 + (point.asleep ? point.restoration : 0),
-             total.1 + (point.asleep ? 0 : point.restoration),
-             total.2 + point.stressDrain,
-             total.3 + point.loadDrain,
-             total.4 + point.baselineDrain)
-        }
+    /// One window for both charts, so the two line up hour for hour.
+    private var window: ClosedRange<Date>? {
+        guard let first = points.first?.date, let last = points.last?.date, last > first else { return nil }
+        return first...last
     }
 
     var body: some View {
         VStack(spacing: 18) {
-            hero
+            Card {
+                BatteryGauge(value: selected?.value, height: 118).padding(.horizontal, 4)
+                if let peak = summary.lastChargePeak, let at = summary.lastChargeAt {
+                    Text(L("batteryLastCharge")
+                            .replacingOccurrences(of: "{0}", with: number(peak))
+                            .replacingOccurrences(of: "{1}", with: at.formatted(date: .omitted, time: .shortened)))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
             if points.count > 1 {
+                EnergyTotals(summary: summary)
                 Card {
-                    HStack {
-                        Text(L("todayCurve")).font(AppTypography.cardTitle)
-                        Spacer()
-                        Text(selected.map { $0.date.formatted(date: .omitted, time: .shortened) } ?? "")
-                            .font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                    }
-                    EnergyCurve(detail: detail, points: points, height: 190, selection: $selectedTime)
+                    Text(snapshot.date.formatted(date: .long, time: .omitted)).font(AppTypography.cardTitle)
+                    EnergyLevelChart(points: points, summary: summary, window: window, selection: $selectedTime)
+                    StressStripChart(points: snapshot.stress, window: window, selection: $selectedTime)
                     EnergyLegend(hasPredicted: points.contains(where: \.predicted))
                 }
                 Card {
                     Text(L("batteryBalance")).font(AppTypography.cardTitle)
                     balanceRows
                 }
+            } else {
+                Card {
+                    ChartWaitingState(tint: AppColors.metric(.energy)).frame(height: 120)
+                    Text(L("batteryEmptyDetail")).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+
             if expanded {
                 Card {
                     Label(L("aboutMetric"), systemImage: "info.circle").font(.subheadline.weight(.medium))
@@ -244,26 +269,15 @@ struct BodyBatteryCard: View {
         }
     }
 
-    private var hero: some View {
-        Card(scene: .energy, accent: AppColors.metric(.energy)) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Label(L("bodyBattery"), systemImage: "bolt.heart.fill").font(.caption.weight(.semibold))
-                    Text(selected.map { $0.date.formatted(date: .omitted, time: .shortened) } ?? L("batteryWaiting"))
-                        .font(.caption2).opacity(0.78)
-                }
-                Spacer(minLength: 10)
-            }
-            BatteryGauge(value: selected?.value, height: 92, morning: morning)
-            if points.count <= 1 {
-                Text(L("batteryEmptyDetail")).font(.caption).opacity(0.85)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+    private var breakdown: (sleep: Double, rest: Double, stress: Double, load: Double, waking: Double) {
+        detail.reduce((0.0, 0.0, 0.0, 0.0, 0.0)) { total, point in
+            (total.0 + (point.asleep ? point.restoration : 0),
+             total.1 + (point.asleep ? 0 : point.restoration),
+             total.2 + point.stressDrain,
+             total.3 + point.loadDrain,
+             total.4 + point.baselineDrain)
         }
     }
-
-    /// Named sources rather than one gross gain and one gross drain: knowing it
-    /// was stress and not exercise is the point of the breakdown.
     private var balanceRows: some View {
         let parts = breakdown
         return VStack(spacing: 9) {
@@ -277,7 +291,7 @@ struct BodyBatteryCard: View {
     private func row(_ title: String, _ value: Double, positive: Bool, symbol: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: symbol).font(.caption)
-                .foregroundStyle(positive ? AppColors.accent : AppColors.warn)
+                .foregroundStyle(positive ? AppColors.ageBetter : AppColors.warn)
                 .frame(width: 20)
             Text(L(title)).font(.subheadline)
             Spacer(minLength: 4)
@@ -286,21 +300,20 @@ struct BodyBatteryCard: View {
     }
 }
 
-/// Says what the colours on the curve mean. Without this the tinted points are
-/// decoration rather than information.
+/// Says what the shaded bands mean, in a sentence rather than as isolated
+/// words. "Dormido · Ejercicio · Estimación" named the colours but never said
+/// what the reader was looking at.
 private struct EnergyLegend: View {
     let hasPredicted: Bool
     var body: some View {
-        HStack(spacing: 14) {
-            item("legendAsleep", AppColors.metric(.sleep))
-            item("legendExercise", AppColors.metric(.strain))
-            if hasPredicted {
-                HStack(spacing: 5) {
-                    Image(systemName: "circle.dotted").font(.caption2).foregroundStyle(.secondary)
-                    Text(L("estimate"))
-                }
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 14) {
+                item("legendAsleep", AppColors.metric(.sleep))
+                item("legendExercise", AppColors.metric(.strain))
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            Text(L(hasPredicted ? "batteryBandsDetailEstimated" : "batteryBandsDetail"))
+                .fixedSize(horizontal: false, vertical: true)
         }
         .font(.caption2).foregroundStyle(.secondary)
     }
@@ -316,90 +329,143 @@ private struct EnergyLegend: View {
 /// The day's curve. A point per fifteen-minute step scattered dozens of dots
 /// across the plot and hid the shape; the periods that matter are shown as
 /// bands behind the line instead, which is what the dots were trying to say.
-private struct EnergyCurve: View {
-    let detail: [EnergyPoint]
+/// Energy across the day. The line is tinted by its own height — amber when
+/// depleted, green when full — and the night is marked as a band so the
+/// overnight climb is attributable at a glance.
+private struct EnergyLevelChart: View {
     let points: [TimelinePoint]
-    var height: CGFloat
+    let summary: EnergySummary
+    let window: ClosedRange<Date>?
     @Binding var selection: Date?
 
-    /// Contiguous runs where a condition held, as date ranges to shade.
-    private func spans(_ matches: (EnergyPoint) -> Bool) -> [ClosedRange<Date>] {
-        var result: [ClosedRange<Date>] = []
-        var start: Date?
-        var previous: Date?
-        for point in detail {
-            if matches(point) {
-                if start == nil { start = point.date }
-                previous = point.date
-            } else if let from = start, let to = previous {
-                if to > from { result.append(from...to) }
-                start = nil; previous = nil
-            }
-        }
-        if let from = start, let to = previous, to > from { result.append(from...to) }
-        return result
-    }
-    private var asleep: [ClosedRange<Date>] { spans { $0.asleep } }
-    private var exercising: [ClosedRange<Date>] { spans { $0.exercise || $0.loadDrain > 0.2 } }
     private var nearest: TimelinePoint? {
         guard let selection else { return nil }
         return points.min { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) }
     }
 
     var body: some View {
-        Chart {
-            ForEach(Array(asleep.enumerated()), id: \.offset) { _, span in
-                RectangleMark(xStart: .value("from", span.lowerBound), xEnd: .value("to", span.upperBound))
-                    .foregroundStyle(AppColors.metric(.sleep).opacity(0.14))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(L("energyLevel")).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                if summary.sleepSpan != nil {
+                    Image(systemName: "moon.stars.fill").font(.caption2).foregroundStyle(AppColors.metric(.sleep))
+                }
+                Spacer()
+                if let nearest {
+                    Text(number(nearest.value) + "%").font(.caption.weight(.bold)).monospacedDigit()
+                        .foregroundStyle(AppColors.energyLevel(nearest.value / 100))
+                }
             }
-            ForEach(Array(exercising.enumerated()), id: \.offset) { _, span in
-                RectangleMark(xStart: .value("from", span.lowerBound), xEnd: .value("to", span.upperBound))
-                    .foregroundStyle(AppColors.metric(.strain).opacity(0.18))
+            Chart {
+                if let sleep = summary.sleepSpan {
+                    RectangleMark(xStart: .value("from", sleep.lowerBound), xEnd: .value("to", sleep.upperBound))
+                        .foregroundStyle(AppColors.metric(.sleep).opacity(0.14))
+                }
+                ForEach(points) { point in
+                    AreaMark(x: .value("t", point.date), y: .value("v", point.value))
+                        .foregroundStyle(AppColors.verticalScale({ AppColors.energyLevel($0).opacity(0.30) }, fade: true))
+                        .interpolationMethod(.monotone)
+                }
+                ForEach(points) { point in
+                    LineMark(x: .value("t", point.date), y: .value("v", point.value))
+                        .foregroundStyle(AppColors.verticalScale(AppColors.energyLevel))
+                        .lineStyle(StrokeStyle(lineWidth: 2.6, lineCap: .round))
+                        .interpolationMethod(.monotone)
+                }
+                if let last = points.last, selection == nil {
+                    PointMark(x: .value("t", last.date), y: .value("v", last.value))
+                        .foregroundStyle(AppColors.energyLevel(last.value / 100)).symbolSize(60)
+                }
+                if let nearest {
+                    RuleMark(x: .value("t", nearest.date))
+                        .foregroundStyle(AppColors.ink.opacity(0.35))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    PointMark(x: .value("t", nearest.date), y: .value("v", nearest.value))
+                        .foregroundStyle(AppColors.energyLevel(nearest.value / 100)).symbolSize(80)
+                }
             }
-            ForEach(points) { point in
-                AreaMark(x: .value("t", point.date), y: .value("v", point.value))
-                    .foregroundStyle(LinearGradient(colors: [AppColors.metric(.energy).opacity(0.32), AppColors.metric(.energy).opacity(0.02)],
-                                                    startPoint: .top, endPoint: .bottom))
-                    .interpolationMethod(.monotone)
+            .chartYScale(domain: 0...100)
+            .chartXScale(domain: window ?? Date()...Date().addingTimeInterval(1))
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: [0, 50, 100]) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 4])).foregroundStyle(AppColors.border)
+                    AxisValueLabel().font(.caption2).foregroundStyle(.secondary)
+                }
             }
-            ForEach(points) { point in
-                LineMark(x: .value("t", point.date), y: .value("v", point.value))
-                    .foregroundStyle(AppColors.metric(.energy))
-                    .lineStyle(StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                    .interpolationMethod(.monotone)
-            }
-            if let last = points.last, selection == nil {
-                PointMark(x: .value("t", last.date), y: .value("v", last.value))
-                    .foregroundStyle(AppColors.metric(.energy)).symbolSize(46)
-            }
-            if let nearest {
-                RuleMark(x: .value("t", nearest.date))
-                    .foregroundStyle(AppColors.ink.opacity(0.35))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                PointMark(x: .value("t", nearest.date), y: .value("v", nearest.value))
-                    .foregroundStyle(AppColors.metric(.energy)).symbolSize(70)
-            }
+            .chartXAxis(.hidden)
+            .chartXSelection(value: $selection)
+            .frame(height: 170)
         }
-        .chartYScale(domain: 0...100)
-        .chartYAxis {
-            AxisMarks(position: .trailing, values: [0, 50, 100]) { _ in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(AppColors.border)
-                AxisValueLabel().font(.caption2).foregroundStyle(.secondary)
-            }
-        }
-        .chartXAxis {
-            AxisMarks(values: .stride(by: .hour, count: 4)) { _ in
-                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(AppColors.border.opacity(0.6))
-                AxisValueLabel(format: .dateTime.hour()).font(.caption2).foregroundStyle(.secondary)
-            }
-        }
-        .chartXSelection(value: $selection)
-        .frame(height: height)
     }
 }
 
-/// Says what the colours on the curve mean. Without this the tinted points are
-/// decoration rather than information.
+/// Activation beneath the level, on the same time axis. Blue when unusually
+/// calm, then green, yellow, orange and red — the low end needed a colour of
+/// its own, which a scale starting at green could not give it.
+private struct StressStripChart: View {
+    let points: [TimelinePoint]
+    let window: ClosedRange<Date>?
+    @Binding var selection: Date?
+
+    private var data: [TimelinePoint] { points.filter { $0.value.isFinite }.sorted { $0.date < $1.date } }
+    private var nearest: TimelinePoint? {
+        guard let selection else { return nil }
+        return data.min { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(L("stressLevel")).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
+                Spacer()
+                if let nearest {
+                    Text(number(nearest.value)).font(.caption.weight(.bold)).monospacedDigit()
+                        .foregroundStyle(AppColors.stressLevel(nearest.value / 100))
+                }
+            }
+            if data.isEmpty {
+                Text(L("stressCalibrationDetail")).font(.caption2).foregroundStyle(.tertiary)
+                    .frame(height: 90, alignment: .center)
+            } else {
+                Chart {
+                    ForEach(data) { point in
+                        AreaMark(x: .value("t", point.date), y: .value("v", point.value))
+                            .foregroundStyle(AppColors.verticalScale({ AppColors.stressLevel($0).opacity(0.34) }, fade: true))
+                            .interpolationMethod(.monotone)
+                    }
+                    ForEach(data) { point in
+                        LineMark(x: .value("t", point.date), y: .value("v", point.value))
+                            .foregroundStyle(AppColors.verticalScale(AppColors.stressLevel))
+                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                            .interpolationMethod(.monotone)
+                    }
+                    if let nearest {
+                        RuleMark(x: .value("t", nearest.date))
+                            .foregroundStyle(AppColors.ink.opacity(0.35))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    }
+                }
+                .chartYScale(domain: 0...100)
+                .chartXScale(domain: window ?? Date()...Date().addingTimeInterval(1))
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: [0, 50, 100]) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 4])).foregroundStyle(AppColors.border)
+                        AxisValueLabel().font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .hour, count: 6)) { _ in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5)).foregroundStyle(AppColors.border.opacity(0.6))
+                        AxisValueLabel(format: .dateTime.hour()).font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                .chartXSelection(value: $selection)
+                .frame(height: 110)
+            }
+        }
+    }
+}
+
 struct StressTodayCard: View {
     let snapshot: DailySnapshot
     private var values: [Double] { snapshot.stress.map(\.value).filter(\.isFinite) }
@@ -426,7 +492,7 @@ struct StressTodayCard: View {
                 }
                 Spacer(minLength: 0)
                 MetricGauge(value: snapshot.score(.stress).value, size: 112,
-                            caption: snapshot.score(.stress).value.map(MetricNarrator.band))
+                            caption: snapshot.score(.stress).value.map(StressEngine.band))
             }
         }
     }
