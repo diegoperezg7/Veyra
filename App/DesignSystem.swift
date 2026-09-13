@@ -159,40 +159,65 @@ struct SectionTitle: View {
     }
 }
 
-/// A closed ring. Kept deliberately plain: a track, a rounded progress stroke,
-/// and the number. The earlier version added an angular gradient ending in
-/// white (invisible on a light background), a blur shadow, and a baseline tick
-/// that stuck out past the stroke and looked like a rendering glitch.
+/// A closed ring. The stroke is thick enough to carry a gradient, which runs
+/// from a light tint at the start of the arc to the full metric colour at its
+/// head, with a soft glow behind it — a flat single-weight stroke read as a
+/// placeholder. The unit is part of the number: "72%", not a bare 72.
+///
+/// An inner highlight band was tried and removed: offset inside a thick stroke
+/// it read as two concentric arcs, like a rendering fault, rather than as shine.
 struct ScoreRing: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var metric: Metric
     var value: Double?
     var size: CGFloat = 88
     var onScene = false
 
-    /// On a photographic scene the light variant of the metric colour is used,
-    /// because the dark palette is the one that holds up against a photograph.
     private var tint: Color { onScene ? AppColors.metricOnScene(metric) : AppColors.metric(metric) }
-    private var width: CGFloat { max(7, size * 0.115) }
+    private var width: CGFloat { max(9, size * 0.145) }
     private var fraction: Double { min(1, max(0, (value ?? 0) / 100)) }
+
+    /// Light to full colour across exactly the drawn arc, so the gradient does
+    /// not compress into a sliver on low scores.
+    private var arcGradient: AngularGradient {
+        AngularGradient(
+            gradient: Gradient(colors: [tint.opacity(0.45), tint.opacity(0.75), tint]),
+            center: .center,
+            startAngle: .degrees(-90),
+            endAngle: .degrees(-90 + 360 * max(0.08, fraction))
+        )
+    }
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(onScene ? Color.white.opacity(0.22) : AppColors.border, lineWidth: width)
+                .stroke(onScene ? Color.white.opacity(0.20) : AppColors.border, lineWidth: width)
             if value != nil {
+                // The glow sits under the stroke, clipped to the ring so it
+                // never fogs the number in the middle.
                 Circle()
                     .trim(from: 0, to: max(0.004, fraction))
                     .stroke(tint, style: StrokeStyle(lineWidth: width, lineCap: .round))
                     .rotationEffect(.degrees(-90))
+                    .blur(radius: reduceTransparency ? 0 : width * 0.55)
+                    .opacity(reduceTransparency ? 0 : 0.55)
+                Circle()
+                    .trim(from: 0, to: max(0.004, fraction))
+                    .stroke(arcGradient, style: StrokeStyle(lineWidth: width, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
             }
             if let value {
-                Text(number(value))
-                    .font(.system(size: size * 0.34, weight: .semibold))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
+                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                    Text(number(value))
+                        .font(.system(size: size * 0.33, weight: .semibold))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text("%")
+                        .font(.system(size: size * 0.17, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
             } else {
-                // No data is shown as no data, not as a zero-length arc at 0%.
                 Image(systemName: "ellipsis")
                     .font(.system(size: size * 0.22, weight: .semibold))
                     .foregroundStyle(.tertiary)

@@ -22,23 +22,25 @@ struct HomeView: View {
                     Spacer()
                     Button { shift(1) } label: { Image(systemName: "chevron.right").padding(10) }.disabled(Calendar.current.isDateInToday(model.selectedDate))
                 }.foregroundStyle(.primary)
-                DaySignalCard(snapshot: model.today)
-                Card(accent: AppColors.metric(.recovery)) {
-                    HStack(alignment: .top, spacing: 12) {
+                Card {
+                    HStack(alignment: .top, spacing: 10) {
                         ForEach([Metric.strain, .recovery, .sleep]) { metric in
                             Button { model.route = metric.rawValue } label: {
-                                VStack(spacing: 10) {
-                                    Text(L(metric.rawValue)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                                    ScoreRing(metric: metric, value: model.today.score(metric).value, size: 76)
-                                    Text(L(model.today.score(metric).value == nil ? "calibrating" : category(metric))).font(.caption2.weight(.medium)).foregroundStyle(.secondary)
-                                    if model.today.score(metric).value != nil {
-                                        ConfidenceBadge(percent: model.today.score(metric).confidencePercent, compact: true)
-                                    }
+                                // Ring first, name under it: the number is the
+                                // subject and the label identifies it.
+                                VStack(spacing: 12) {
+                                    ScoreRing(metric: metric, value: model.today.score(metric).value, size: 86)
+                                    Text(L(metric.rawValue))
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(AppColors.ink)
+                                        .lineLimit(1).minimumScaleFactor(0.75)
                                 }.frame(maxWidth: .infinity)
                             }.buttonStyle(.plain).accessibilityIdentifier("score-" + metric.rawValue)
                         }
                     }
                 }
+                // Guidance sits under the scores it is drawn from, not above them.
+                DaySignalCard(snapshot: model.today, history: model.history)
                 if model.preferences.enabledCards.contains("energy") {
                     Button { model.route = "energy" } label: { BodyBatteryCompactCard(snapshot: model.today) }
                         .buttonStyle(.plain).accessibilityIdentifier("battery-detail")
@@ -76,9 +78,6 @@ struct HomeView: View {
         let hour = Calendar.current.component(.hour, from: Date())
         return L(hour < 12 ? "goodMorning" : hour < 19 ? "goodAfternoon" : "goodEvening")
     }
-    private func category(_ metric: Metric) -> String {
-        MetricNarrator.band(model.today.score(metric).value ?? 0)
-    }
     @ViewBuilder private func cardView(_ id: String) -> some View {
         switch id {
         case "health": Button { model.tab = "biology" } label: { Card { SectionTitle(title: "healthMonitor", symbol: "heart.text.clipboard"); HStack { ForEach(["hrv", "rhr", "respiratory", "oxygen"], id: \.self) { key in VStack(alignment: .leading, spacing: 7) { Text(L(key)).font(.caption2).foregroundStyle(.secondary); Text(number(model.today.vital(key)?.value, digits: key == "respiratory" ? 1 : 0)).font(.title3.weight(.semibold)); Capsule().fill(AppColors.accent.opacity(0.3)).frame(height: 4) }.frame(maxWidth: .infinity, alignment: .leading) } } } }.buttonStyle(.plain)
@@ -89,41 +88,44 @@ struct HomeView: View {
                 }
 }
 
-/// The day's headline. It used to be painted with a fixed night-blue gradient
-/// and white text, which turned it into a black slab on a white screen; it now
-/// uses the metric's own scene so it reads in both appearances.
+/// Personal guidance: a cross-metric read of the day and one thing to do about
+/// it. A single score cannot say "poor sleep but strong recovery", and that
+/// contrast is usually the useful sentence.
 private struct DaySignalCard: View {
     let snapshot: DailySnapshot
+    let history: [DailySnapshot]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var energy: Double? { snapshot.score(.energy).value }
-    private var stress: Double? { snapshot.score(.stress).value }
-    private var recovery: Double? { snapshot.score(.recovery).value }
 
-    private var state: (title: String, detail: String, symbol: String, scene: MetricScene, metric: Metric) {
-        if let energy, energy < 35 { return ("signalLowEnergyTitle", "signalLowEnergyDetail", "leaf.fill", .energy, .energy) }
-        if let stress, stress >= 70 { return ("signalHighStressTitle", "signalHighStressDetail", "waveform.path.ecg", .stress, .stress) }
-        if let recovery, recovery >= 70 { return ("signalReadyTitle", "signalReadyDetail", "figure.run", .recovery, .recovery) }
-        return ("signalLearningTitle", "signalLearningDetail", "sparkles", .recovery, .recovery)
+    private var scene: MetricScene {
+        if let energy = snapshot.score(.energy).value, energy < 35 { return .energy }
+        if let stress = snapshot.score(.stress).value, stress >= 65 { return .stress }
+        if let recovery = snapshot.score(.recovery).value, recovery >= 65 { return .recovery }
+        return .sleep
     }
 
     var body: some View {
-        let state = state
-        Card(scene: state.scene, accent: AppColors.metric(state.metric)) {
-            HStack(alignment: .center, spacing: 14) {
-                Image(systemName: state.symbol)
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 48, height: 48)
-                    .background(.ultraThinMaterial, in: Circle())
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("todayRhythm")).font(.caption.weight(.semibold)).opacity(0.72)
-                    Text(L(state.title)).font(.headline.weight(.bold))
-                    Text(L(state.detail)).font(.caption).opacity(0.8).fixedSize(horizontal: false, vertical: true)
+        let briefing = MetricNarrator.briefing(snapshot: snapshot, history: history)
+        Card(scene: scene, accent: AppColors.accent) {
+            HStack {
+                Label(L("personalAdvice"), systemImage: "sparkles")
+                    .font(.caption.weight(.semibold)).opacity(0.85)
+                Spacer()
+                if briefing.confidencePercent > 0 {
+                    ConfidenceBadge(percent: briefing.confidencePercent, compact: true, onScene: true)
                 }
-                Spacer(minLength: 0)
+            }
+            Text(localized(briefing.headline))
+                .font(.headline.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            ForEach(briefing.detail) { line in
+                Text(localized(line))
+                    .font(.subheadline)
+                    .opacity(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.42), value: energy)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.42), value: stress)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.42), value: snapshot.score(.recovery).value)
         .accessibilityElement(children: .combine)
     }
 }
+

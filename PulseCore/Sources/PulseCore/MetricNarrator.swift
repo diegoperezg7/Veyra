@@ -102,6 +102,57 @@ public enum MetricNarrator {
         }
     }
 
+    /// The day read as a whole rather than metric by metric. The useful
+    /// sentence is usually a contrast — poor sleep but strong recovery, good
+    /// recovery but no training — because that is what a single score cannot
+    /// say. Deterministic, local, and derived only from what was measured.
+    public static func briefing(snapshot: DailySnapshot, history: [DailySnapshot]) -> MetricNarrative {
+        func score(_ metric: Metric) -> Double? { snapshot.score(metric).value }
+        let sleep = score(.sleep), recovery = score(.recovery)
+        let strain = score(.strain), stress = score(.stress), energy = score(.energy)
+
+        var headline = NarrativeLine("briefing.learning")
+        var lines: [NarrativeLine] = []
+
+        // Ordered by how much the pairing changes what you would do today.
+        if let sleep, let recovery, sleep < 45, recovery >= 65 {
+            headline = .init("briefing.sleepPoorRecoveryGood", [number(sleep), number(recovery)])
+        } else if let sleep, let recovery, sleep >= 65, recovery < 45 {
+            headline = .init("briefing.sleepGoodRecoveryPoor", [number(sleep), number(recovery)])
+        } else if let recovery, let strain, recovery < 45, strain >= 60 {
+            headline = .init("briefing.recoveryPoorStrainHigh", [number(recovery), number(strain)])
+        } else if let recovery, let strain, recovery >= 65, strain < 35 {
+            headline = .init("briefing.recoveryGoodStrainLow", [number(recovery)])
+        } else if let stress, stress >= 65 {
+            headline = .init("briefing.stressHigh", [number(stress)])
+        } else if let energy, energy < 35 {
+            headline = .init("briefing.energyLow", [number(energy)])
+        } else if let recovery, let sleep, recovery >= 60, sleep >= 60 {
+            headline = .init("briefing.balanced")
+        }
+
+        // One thing to do about it, chosen from the same observations.
+        if snapshot.sleepDebt >= 60 {
+            lines.append(.init("briefing.actionEarlyNight", [minutes(snapshot.sleepDebt)]))
+        } else if let stress, stress >= 65 {
+            lines.append(.init("briefing.actionDownregulate"))
+        } else if let strain, let target = snapshot.targetStrain, strain > target * 1.15 {
+            lines.append(.init("briefing.actionEaseOff", [number(target)]))
+        } else if let strain, let target = snapshot.targetStrain, strain < target * 0.75 {
+            lines.append(.init("briefing.actionRoomToTrain", [number(target)]))
+        } else if recovery != nil || sleep != nil {
+            lines.append(.init("briefing.actionKeepGoing"))
+        }
+
+        // Confidence of the weakest score the headline leans on, so the card
+        // never looks surer than the numbers under it.
+        let used = [sleep != nil ? snapshot.score(.sleep) : nil,
+                    recovery != nil ? snapshot.score(.recovery) : nil].compactMap { $0 }
+        let percent = used.map(\.confidencePercent).min() ?? 0
+        return .init(headline: headline, detail: lines, confidencePercent: percent,
+                     limitations: used.flatMap { $0.report?.limitations ?? [] })
+    }
+
     /// Five bands. Stress reads the opposite way round: a high number is bad.
     public static func band(_ value: Double) -> String {
         switch value {
@@ -120,6 +171,9 @@ public enum MetricNarrator {
         let rounded = (value * 10).rounded() / 10
         let text = rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
         return unit.isEmpty ? text : text + " " + unit
+    }
+    private static func number(_ value: Double) -> String {
+        String(Int(value.rounded()))
     }
     private static func minutes(_ value: Double) -> String {
         guard value.isFinite else { return "—" }

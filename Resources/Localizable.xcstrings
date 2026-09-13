@@ -1317,6 +1317,227 @@
         }
       }
     },
+    "briefing.actionDownregulate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slow breathing or an easy walk will help more than pushing."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un rato de respiración lenta o un paseo tranquilo ayudan más que empujar."
+          }
+        }
+      }
+    },
+    "briefing.actionEarlyNight": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn in earlier tonight: you are carrying {0} of sleep debt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acuéstate antes esta noche: arrastras {0} de deuda de sueño."
+          }
+        }
+      }
+    },
+    "briefing.actionEaseOff": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are past today's target ({0}); ease off for the rest of the day."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Has pasado tu objetivo de hoy ({0}); baja el ritmo lo que queda de día."
+          }
+        }
+      }
+    },
+    "briefing.actionKeepGoing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep doing what you are doing: the pattern is with you."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mantén lo que estás haciendo: el patrón acompaña."
+          }
+        }
+      }
+    },
+    "briefing.actionRoomToTrain": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have room left before today's target ({0})."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Te queda margen hasta tu objetivo de hoy ({0})."
+          }
+        }
+      }
+    },
+    "briefing.balanced": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your day is in balance"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu día está equilibrado"
+          }
+        }
+      }
+    },
+    "briefing.energyLow": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your reserves are low ({0})."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tus reservas están bajas ({0})."
+          }
+        }
+      }
+    },
+    "briefing.learning": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Still learning your pattern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aún estamos aprendiendo tu patrón"
+          }
+        }
+      }
+    },
+    "briefing.recoveryGoodStrainLow": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your recovery is high ({0}) and you have barely loaded today."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu recuperación está alta ({0}) y apenas has cargado hoy."
+          }
+        }
+      }
+    },
+    "briefing.recoveryPoorStrainHigh": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your recovery is low ({0}) and you have already taken on load ({1})."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu recuperación es baja ({0}) y ya llevas bastante carga ({1})."
+          }
+        }
+      }
+    },
+    "briefing.sleepGoodRecoveryPoor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You slept well ({0}), but your recovery does not reflect it ({1})."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dormiste bien ({0}), pero tu recuperación no lo refleja ({1})."
+          }
+        }
+      }
+    },
+    "briefing.sleepPoorRecoveryGood": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Despite poor sleep ({0}), your recovery is strong ({1})."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A pesar de un sueño flojo ({0}), tu recuperación es buena ({1})."
+          }
+        }
+      }
+    },
+    "briefing.stressHigh": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your physiological activation has been high for much of the day ({0})."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu activación fisiológica lleva alta buena parte del día ({0})."
+          }
+        }
+      }
+    },
     "caffeine": {
       "extractionState": "stale",
       "localizations": {
@@ -6342,6 +6563,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Inicio del período"
+          }
+        }
+      }
+    },
+    "personalAdvice": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personal guidance"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asesoramiento personal"
           }
         }
       }
