@@ -40,6 +40,10 @@ final class StrengthTests: XCTestCase {
         app.buttons["complete-1"].tap()
         XCTAssertTrue(app.staticTexts["600 kg"].waitForExistence(timeout: 5), "el volumen no recogió la serie")
 
+        // And it starts the rest clock, which is the question in a gym.
+        XCTAssertTrue(app.staticTexts["Descansando"].waitForExistence(timeout: 5),
+                      "marcar una serie debe arrancar el descanso")
+
         // A second set repeats the first rather than starting blank.
         app.buttons["Añadir serie"].tap()
         let second = app.textFields["weight-2"]

@@ -579,6 +579,11 @@ private struct LoggedExercise: View {
 
     private var done: [StrengthSet] { sets.filter(\.completed) }
 
+    private func clock(_ seconds: Double) -> String {
+        let total = Int(max(0, seconds))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
@@ -595,6 +600,16 @@ private struct LoggedExercise: View {
                     .font(.caption).foregroundStyle(.secondary).monospacedDigit()
             }
             VStack(spacing: 0) {
+                if done.contains(where: { $0.restSeconds != nil }) {
+                    HStack {
+                        Spacer().frame(width: 20)
+                        Text(L("weightShort")).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(L("repsShort")).frame(width: 46, alignment: .trailing)
+                        Text(L("restLabel")).frame(width: 44, alignment: .trailing)
+                    }
+                    .font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).textCase(.uppercase)
+                    .padding(.top, 6)
+                }
                 ForEach(Array(done.enumerated()), id: \.element.id) { index, set in
                     HStack {
                         Text("\(index + 1)")
@@ -605,7 +620,12 @@ private struct LoggedExercise: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Text("×\(set.reps)")
                             .font(.caption.weight(.medium)).monospacedDigit()
-                            .frame(width: 52, alignment: .trailing)
+                            .frame(width: 46, alignment: .trailing)
+                        // Rest before this set, when it was measured live.
+                        Text(set.restSeconds.map { clock($0) } ?? "—")
+                            .font(.caption2).monospacedDigit()
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 44, alignment: .trailing)
                     }
                     .padding(.vertical, 5)
                     if set.id != done.last?.id { Divider().overlay(AppColors.divider) }

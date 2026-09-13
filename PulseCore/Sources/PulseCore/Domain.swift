@@ -262,8 +262,14 @@ public struct StrengthSet: Codable, Sendable, Identifiable, Equatable {
     public var kind: String
     public var completed: Bool
     public var superset: String
-    public init(exerciseID: String, reps: Int = 10, weightKg: Double = 0, rpe: Double = 7, kind: String = "working", completed: Bool = false, superset: String = "") {
+    /// Seconds rested before this set was performed, measured from when the
+    /// previous one was ticked. Optional because sets logged before the timer
+    /// existed have none, and because a set entered after the fact has no rest
+    /// to measure.
+    public var restSeconds: Double?
+    public init(exerciseID: String, reps: Int = 10, weightKg: Double = 0, rpe: Double = 7, kind: String = "working", completed: Bool = false, superset: String = "", restSeconds: Double? = nil) {
         self.exerciseID = exerciseID; self.reps = reps; self.weightKg = weightKg; self.rpe = rpe; self.kind = kind; self.completed = completed; self.superset = superset
+        self.restSeconds = restSeconds
     }
 }
 /// A logged strength workout. Kept here rather than in the app so the history

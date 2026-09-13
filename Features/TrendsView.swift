@@ -26,8 +26,11 @@ struct TrendsView: View {
                             HStack {
                                 Label(L(metric.rawValue), systemImage: metricSymbol(metric)).font(AppTypography.cardTitle)
                                 Spacer()
-                                Text(number(latest(metric))).font(.title3.weight(.bold)).monospacedDigit()
-                                    .foregroundStyle(AppColors.metric(metric))
+                                VStack(alignment: .trailing, spacing: 0) {
+                                    Text(number(latest(metric))).font(.title3.weight(.bold)).monospacedDigit()
+                                        .foregroundStyle(AppColors.metric(metric))
+                                    Text(L("latestReading")).font(.caption2).foregroundStyle(.tertiary)
+                                }
                             }
                             HealthTrendChart(points: points(metric), metric: metric, height: 120, maximumGap: 26 * 3600)
                         }
@@ -85,6 +88,15 @@ private struct WeekComparison: View {
         if rows.isEmpty {
             EmptyMetricState(title: "trendsCalibrating", detail: "trendsCalibratingDetail")
         } else {
+            // Without this the average of the period sits next to each metric's
+            // latest value further down, and two different numbers under the
+            // same name read as a mistake.
+            HStack {
+                Text(L("periodAverage")).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text(L("versusFirstHalf")).font(.caption2).foregroundStyle(.tertiary)
+            }
+            .padding(.bottom, 2)
             ForEach(rows, id: \.0) { metric, value, delta in
                 HStack(spacing: 12) {
                     Circle().fill(AppColors.metric(metric)).frame(width: 8, height: 8)

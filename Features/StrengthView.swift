@@ -238,6 +238,10 @@ struct ActiveStrengthView: View {
     @State private var session: StrengthSession?
     @State private var pickingExercise = false
     @State private var confirmFinish = false
+    /// When the last set was ticked, so the next one knows how long you rested.
+    @State private var lastCompletedAt: Date?
+    @State private var now = Date()
+    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         Group {
@@ -275,6 +279,9 @@ struct ActiveStrengthView: View {
         ScrollView {
             VStack(spacing: 18) {
                 summary(session)
+                if let lastCompletedAt {
+                    RestTimer(seconds: now.timeIntervalSince(lastCompletedAt))
+                }
                 ForEach(Array(MuscleTensionEngine.groups(session.sets).enumerated()), id: \.offset) { _, group in
                     VStack(spacing: 10) {
                         if group.count > 1 {
@@ -297,6 +304,7 @@ struct ActiveStrengthView: View {
                                 grouped: group.count > 1,
                                 canGroup: canGroup(id),
                                 onChange: update,
+                                onComplete: complete,
                                 onAdd: { addSet(id) },
                                 onRemove: { remove($0) },
                                 onGroup: { groupWithPrevious(id) }
@@ -328,6 +336,7 @@ struct ActiveStrengthView: View {
         }
         .pulsePage()
         .scrollDismissesKeyboard(.interactively)
+        .onReceive(tick) { now = $0 }
     }
 
     private func summary(_ session: StrengthSession) -> some View {
@@ -412,6 +421,18 @@ struct ActiveStrengthView: View {
         persist(current)
     }
 
+    /// Ticking a set records how long you rested since the previous one, and
+    /// restarts the clock. Untickng it just clears the flag: the rest that
+    /// already happened did happen.
+    private func complete(_ set: StrengthSet) {
+        var copy = set
+        if copy.completed {
+            if let last = lastCompletedAt { copy.restSeconds = Date().timeIntervalSince(last) }
+            lastCompletedAt = Date()
+        }
+        update(copy)
+    }
+
     private func update(_ set: StrengthSet) {
         guard var current = session, let index = current.sets.firstIndex(where: { $0.id == set.id }) else { return }
         current.sets[index] = set
@@ -451,6 +472,7 @@ private struct ExerciseBlock: View {
     var grouped = false
     var canGroup = false
     var onChange: (StrengthSet) -> Void
+    var onComplete: (StrengthSet) -> Void
     var onAdd: () -> Void
     var onRemove: (StrengthSet) -> Void
     var onGroup: () -> Void = {}
@@ -484,7 +506,8 @@ private struct ExerciseBlock: View {
             .font(.caption2.weight(.semibold)).foregroundStyle(.tertiary).textCase(.uppercase)
 
             ForEach(Array(sets.enumerated()), id: \.element.id) { index, set in
-                SetRow(index: index + 1, set: set, onChange: onChange, onRemove: { onRemove(set) })
+                SetRow(index: index + 1, set: set, onChange: onChange,
+                       onComplete: onComplete, onRemove: { onRemove(set) })
             }
 
             Button(action: onAdd) {
@@ -506,6 +529,7 @@ private struct SetRow: View {
     var index: Int
     var set: StrengthSet
     var onChange: (StrengthSet) -> Void
+    var onComplete: (StrengthSet) -> Void
     var onRemove: () -> Void
 
     var body: some View {
@@ -534,7 +558,7 @@ private struct SetRow: View {
             Button {
                 var copy = set
                 copy.completed.toggle()
-                onChange(copy)
+                onComplete(copy)
             } label: {
                 Image(systemName: set.completed ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
@@ -1065,5 +1089,41 @@ struct PlateCalculatorView: View {
         .pulsePage()
         .navigationTitle(L("plateCalculator"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Time since the last set was ticked. In a gym the question is never "what
+/// time is it" but "how long have I been standing here", so it counts up from
+/// the last set rather than down from a target nobody set.
+private struct RestTimer: View {
+    var seconds: TimeInterval
+
+    /// Two minutes is a common enough rest that passing it is worth marking —
+    /// not as a failure, just as a fact.
+    private var long: Bool { seconds >= 120 }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "timer")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(long ? AppColors.warn : AppColors.accent)
+            Text(L("restingFor")).font(.subheadline).foregroundStyle(.secondary)
+            Spacer()
+            Text(clock(seconds))
+                .font(.title3.weight(.bold)).monospacedDigit()
+                .foregroundStyle(long ? AppColors.warn : AppColors.ink)
+                .contentTransition(.numericText())
+        }
+        .padding(.horizontal, 18).padding(.vertical, 12)
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder((long ? AppColors.warn : AppColors.accent).opacity(0.35), lineWidth: 1)
+        }
+    }
+
+    private func clock(_ seconds: TimeInterval) -> String {
+        let total = Int(max(0, seconds))
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
