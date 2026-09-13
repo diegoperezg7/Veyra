@@ -41,12 +41,20 @@ struct HomeView: View {
                 }
                 // Guidance sits under the scores it is drawn from, not above them.
                 DaySignalCard(snapshot: model.today, history: model.history)
-                if model.preferences.enabledCards.contains("energy") {
-                    Button { model.route = "energy" } label: { BodyBatteryCompactCard(snapshot: model.today) }
-                        .buttonStyle(.plain).accessibilityIdentifier("battery-detail")
-                }
-                if model.preferences.enabledCards.contains("stress") {
-                    Button { model.route = "stress" } label: { StressTodayCard(snapshot: model.today) }.buttonStyle(.plain)
+                if model.preferences.enabledCards.contains("stress") || model.preferences.enabledCards.contains("energy") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L("stressAndEnergy")).font(.title3.weight(.bold))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 6)
+                        if model.preferences.enabledCards.contains("stress") {
+                            Button { model.route = "stress" } label: { StressTodayCard(snapshot: model.today) }
+                                .buttonStyle(.plain)
+                        }
+                        if model.preferences.enabledCards.contains("energy") {
+                            Button { model.route = "energy" } label: { BodyBatteryCompactCard(snapshot: model.today) }
+                                .buttonStyle(.plain).accessibilityIdentifier("battery-detail")
+                        }
+                    }
                 }
                 HStack(spacing: 10) {
                     quickAction("journal", symbol: "book.closed.fill") { model.route = "journal" }

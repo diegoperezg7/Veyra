@@ -82,10 +82,15 @@ enum AppColors {
         switch fraction {
         case ..<0.15: danger
         case ..<0.35: warn
-        case ..<0.60: .adaptive(light: 0x8A8F00, dark: 0xD8E05A)
-        default: .adaptive(light: 0x3FA64B, dark: 0x6EDC7A)
+        case ..<0.60: .adaptive(light: 0xA8B520, dark: 0xD8E05A)
+        // Leaning teal, to sit with the app's own mint rather than against it.
+        default: .adaptive(light: 0x2DBE8C, dark: 0x45E3B0)
         }
     }
+    /// The unfilled part of a battery cell. Deep enough that a white figure
+    /// over it keeps its contrast, in both appearances.
+    static let batteryWell = Color.adaptive(light: 0xB9C2BF, dark: 0x2A312E)
+    static let batteryHatch = Color.adaptive(light: 0xCCD4D1, dark: 0x3A423F)
     /// Energy level as a colour: depleted is red, full is green. Used as a
     /// vertical gradient over a 0–100 plot so the line is tinted by its height.
     static func energyLevel(_ fraction: Double) -> Color {
@@ -93,7 +98,7 @@ enum AppColors {
             (0.00, danger),
             (0.30, .adaptive(light: 0xD98A19, dark: 0xFFB454)),
             (0.55, .adaptive(light: 0xB8A800, dark: 0xE8DC5A)),
-            (1.00, .adaptive(light: 0x3FA64B, dark: 0x6EDC7A))
+            (1.00, .adaptive(light: 0x2DBE8C, dark: 0x45E3B0))
         ]
         return interpolate(stops, fraction)
     }
@@ -174,9 +179,11 @@ struct Card<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     var scene: MetricScene? = nil
     var accent: Color? = nil
+    /// Stacking of the card's own rows. Dense cards need less than the default.
+    var spacing: CGFloat = 16
     @ViewBuilder var content: Content
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) { content }
+        VStack(alignment: .leading, spacing: spacing) { content }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background {

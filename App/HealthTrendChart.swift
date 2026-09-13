@@ -216,93 +216,65 @@ struct ChartWaitingState: View {
     }
 }
 
-/// An open-bottom arc. The earlier version drew a needle and a hub, which read
-/// as a toy speedometer; this is a track, a filled progress arc in the scale's
-/// colour, and a rounded marker sitting on it — the same vocabulary Apple uses
-/// for its own gauges.
+/// An open-bottom dial drawn as radial ticks rather than a solid band. Each
+/// tick takes its colour from its own position on the scale, and ticks past the
+/// value fall back to the track, so the instrument shows the whole range and
+/// where you sit on it at once. A single filled arc showed only the latter.
 struct MetricGauge: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var value: Double?
     var size: CGFloat = 128
-    /// When true a high value is the bad end, which is how stress reads.
-    var higherIsWorse = true
+    /// Colour for a position on the scale, 0 (low) to 1 (high).
+    var colour: (Double) -> Color = AppColors.stressLevel
     var caption: String?
 
-    // Almost a full circle, left open at the bottom. A shallow 220° arc read as
-    // a speedometer dial; this reads as a ring that happens to have a scale.
-    private let span = 280.0
-    private let startAngle = 130.0
+    @State private var sweep: Double = 0
+
+    private let count = 44
+    private let span = 268.0
+    private let start = 136.0
     private var fraction: Double { min(1, max(0, (value ?? 0) / 100)) }
-    private var severity: Double { higherIsWorse ? fraction : 1 - fraction }
-    private var tint: Color { AppColors.scale(severity) }
-    private var lineWidth: CGFloat { size * 0.095 }
 
     var body: some View {
         ZStack {
-            GaugeArc(start: startAngle, span: span, fraction: 1)
-                .stroke(AppColors.border, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            if value != nil {
-                GaugeArc(start: startAngle, span: span, fraction: fraction)
-                    .stroke(AngularGradient(colors: higherIsWorse ? AppColors.scaleGradient : AppColors.scaleGradient.reversed(),
-                                            center: .center,
-                                            startAngle: .degrees(startAngle),
-                                            endAngle: .degrees(startAngle + span)),
-                            style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                GaugeMarker(start: startAngle, span: span, fraction: fraction, radius: lineWidth * 0.46)
-                    .fill(.white)
-                    .shadow(color: .black.opacity(0.25), radius: 2)
+            ForEach(0..<count, id: \.self) { index in
+                let position = Double(index) / Double(count - 1)
+                let lit = value != nil && position <= sweep
+                Capsule()
+                    .fill(lit ? colour(position) : AppColors.border)
+                    .frame(width: size * 0.022, height: size * 0.085)
+                    .offset(y: -size * 0.40)
+                    .rotationEffect(.degrees(start + span * position + 90))
             }
-            VStack(spacing: 1) {
+            VStack(spacing: 0) {
                 Text(number(value))
-                    .font(.system(size: size * 0.30, weight: .bold))
+                    .font(.system(size: size * 0.26, weight: .semibold))
                     .monospacedDigit().contentTransition(.numericText())
+                    .foregroundStyle(AppColors.ink)
                 if let caption {
-                    Text(L(caption)).font(.system(size: size * 0.105, weight: .semibold))
-                        .foregroundStyle(tint)
+                    Text(L(caption))
+                        .font(.system(size: size * 0.10, weight: .semibold))
+                        .foregroundStyle(colour(fraction))
                 }
             }
         }
         .frame(width: size, height: size)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.4), value: value)
+        // The dial is open at the bottom, so the lower eighth of a square frame
+        // is empty. Reclaiming it stops the card growing around nothing.
+        .padding(.bottom, -size * 0.13)
+        .onAppear { animate() }
+        .onChange(of: fraction) { _, _ in animate() }
         .accessibilityElement(children: .ignore)
         .accessibilityValue(value.map { number($0) } ?? L("noData"))
     }
-}
 
-private struct GaugeArc: Shape {
-    var start: Double
-    var span: Double
-    var fraction: Double
-    var animatableData: Double { get { fraction } set { fraction = newValue } }
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius = gaugeRadius(in: rect)
-        // A zero-length arc still needs a hair of sweep or the round cap vanishes.
-        let sweep = max(0.4, span * min(1, max(0, fraction)))
-        path.addArc(center: gaugeCentre(in: rect), radius: radius,
-                    startAngle: .degrees(start), endAngle: .degrees(start + sweep), clockwise: false)
-        return path
+    private func animate() {
+        guard value != nil else { sweep = 0; return }
+        guard !reduceMotion else { sweep = fraction; return }
+        sweep = 0
+        withAnimation(.smooth(duration: 0.7)) { sweep = fraction }
     }
 }
-
-private struct GaugeMarker: Shape {
-    var start: Double
-    var span: Double
-    var fraction: Double
-    var radius: CGFloat
-    var animatableData: Double { get { fraction } set { fraction = newValue } }
-    func path(in rect: CGRect) -> Path {
-        let angle = Angle.degrees(start + span * min(1, max(0, fraction))).radians
-        let centre = gaugeCentre(in: rect)
-        let r = gaugeRadius(in: rect)
-        let point = CGPoint(x: centre.x + cos(angle) * r, y: centre.y + sin(angle) * r)
-        return Path(ellipseIn: CGRect(x: point.x - radius, y: point.y - radius, width: radius * 2, height: radius * 2))
-    }
-}
-
-/// Shared so the track, the fill and the marker cannot drift apart.
-private func gaugeCentre(in rect: CGRect) -> CGPoint { CGPoint(x: rect.midX, y: rect.midY) }
-private func gaugeRadius(in rect: CGRect) -> CGFloat { min(rect.width, rect.height) / 2 * 0.86 }
 
 #Preview("Chart and gauge") {
     let start = Calendar.current.startOfDay(for: Date())

@@ -54,7 +54,10 @@ struct BatteryStrip: View {
 struct BatteryGauge: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var value: Double?
-    var height: CGFloat = 118
+    var height: CGFloat = 104
+    /// Inset from the card's edges, so the cell reads as an object sitting on
+    /// the card rather than as a bar spanning it.
+    var inset: CGFloat = 26
 
     @State private var filled: Double = 0
     private var fraction: Double { min(1, max(0, (value ?? 0) / 100)) }
@@ -68,32 +71,57 @@ struct BatteryGauge: View {
                 let bezel = h * 0.075
                 let innerRadius = radius - bezel * 0.8
                 let innerWidth = w - bezel * 2
-                // Enough charge to hold the figure comfortably inside it.
-                let fillCentred = filled >= 0.42
                 ZStack(alignment: .leading) {
+                    // Deeper than the card behind it, so a white figure keeps
+                    // its contrast wherever the fill happens to end. A
+                    // near-white remainder forced the label to switch colour
+                    // mid-word at the boundary.
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .fill(AppColors.surfaceRaised)
+                        .fill(AppColors.batteryWell)
                         .overlay(
                             RoundedRectangle(cornerRadius: radius, style: .continuous)
                                 .strokeBorder(AppColors.border, lineWidth: bezel * 0.8)
                         )
                     // Remainder: hatched, so "empty" is visibly part of the cell.
                     DiagonalHatch(spacing: h * 0.11)
-                        .stroke(AppColors.border, lineWidth: 1.5)
+                        .stroke(AppColors.batteryHatch, lineWidth: 1.5)
                         .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
                         .padding(bezel)
                         .opacity(0.9)
-                    RoundedRectangle(cornerRadius: innerRadius, style: .continuous)
-                        .fill(LinearGradient(colors: [tint.mix(with: .white, by: 0.22), tint],
-                                             startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: max(0, innerWidth * filled))
-                        .padding(bezel)
-                    // Centred inside the charged portion rather than inside the
-                    // cell: centred in the cell, the "%" spilled past the fill
-                    // edge and went white on the near-white hatching.
-                    label(height: h, onFill: fillCentred)
-                        .frame(width: fillCentred ? innerWidth * filled : w, height: h)
-                        .padding(.leading, fillCentred ? bezel : 0)
+                    // Lit from above: a brighter band across the top third and
+                    // a darker foot, which is what makes a flat rectangle read
+                    // as a cell with depth rather than as a bar.
+                    //
+                    // The width is fixed on the ZStack, not on the shape after
+                    // its overlays: applied last it fought the overlays' own
+                    // sizing and the fill stopped short of its level.
+                    ZStack(alignment: .top) {
+                        RoundedRectangle(cornerRadius: innerRadius, style: .continuous)
+                            .fill(LinearGradient(stops: [
+                                .init(color: tint.mix(with: .white, by: 0.38), location: 0.00),
+                                .init(color: tint.mix(with: .white, by: 0.16), location: 0.30),
+                                .init(color: tint, location: 0.62),
+                                .init(color: tint.mix(with: .black, by: 0.12), location: 1.00)
+                            ], startPoint: .top, endPoint: .bottom))
+                        // The specular highlight, inset so it reads as a
+                        // reflection on a curved surface.
+                        RoundedRectangle(cornerRadius: innerRadius * 0.7, style: .continuous)
+                            .fill(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.02)],
+                                                 startPoint: .top, endPoint: .bottom))
+                            .padding(.horizontal, bezel)
+                            .padding(.top, bezel * 0.6)
+                            .frame(height: h * 0.34)
+                            .blur(radius: bezel * 0.4)
+                        RoundedRectangle(cornerRadius: innerRadius, style: .continuous)
+                            .strokeBorder(.white.opacity(0.30), lineWidth: 1)
+                    }
+                    .frame(width: max(0, innerWidth * filled), height: h - bezel * 2)
+                    .clipShape(RoundedRectangle(cornerRadius: innerRadius, style: .continuous))
+                    .shadow(color: tint.opacity(0.35), radius: bezel * 0.6, y: bezel * 0.2)
+                    .padding(bezel)
+
+                    label(height: h)
+                        .frame(width: w, height: h)
                 }
             }
             .frame(height: height)
@@ -101,6 +129,7 @@ struct BatteryGauge: View {
                 .fill(AppColors.border)
                 .frame(width: height * 0.06, height: height * 0.28)
         }
+        .padding(.horizontal, inset)
         .onAppear { animate() }
         .onChange(of: fraction) { _, _ in animate() }
         .accessibilityElement(children: .ignore)
@@ -108,22 +137,23 @@ struct BatteryGauge: View {
         .accessibilityValue(value.map { number($0) + "%" } ?? L("noData"))
     }
 
-    /// White once the fill has passed the middle, ink before that, so the
-    /// figure always has contrast behind it.
-    private func label(height h: CGFloat, onFill: Bool) -> some View {
+    /// Always white, with a soft shadow so it holds over the fill and over the
+    /// hatched remainder alike.
+    private func label(height h: CGFloat) -> some View {
         VStack(spacing: -h * 0.04) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(number(value))
-                    .font(.system(size: h * 0.40, weight: .bold))
+                    .font(.system(size: h * 0.38, weight: .bold))
                     .monospacedDigit().contentTransition(.numericText())
-                Text("%").font(.system(size: h * 0.18, weight: .semibold)).opacity(0.85)
+                Text("%").font(.system(size: h * 0.17, weight: .semibold)).opacity(0.85)
             }
             .lineLimit(1).minimumScaleFactor(0.6)
             Image(systemName: "bolt.fill")
                 .font(.system(size: h * 0.12, weight: .bold))
                 .opacity(0.9)
         }
-        .foregroundStyle(onFill ? Color.white : AppColors.ink)
+        .foregroundStyle(.white)
+        .shadow(color: .black.opacity(0.28), radius: h * 0.04, y: h * 0.01)
     }
 
     private func animate() {
@@ -158,45 +188,26 @@ struct EnergyTotals: View {
 
 /// The compact home-screen battery: the same height as the stress and health
 /// cards, with the strip doing the work. The curve and the breakdown live in
-/// the detail view, which is where there is room for them.
+/// The home-screen battery: one row — bolt, bars, percentage. The title, the
+/// totals and the charts belong to the detail screen; here they only take room
+/// from everything else on the page.
 struct BodyBatteryCompactCard: View {
     let snapshot: DailySnapshot
-    private var detail: [EnergyPoint] { (snapshot.energyDetail ?? []).sorted { $0.date < $1.date } }
     private var value: Double? { snapshot.score(.energy).value }
-    private var morning: Double? {
-        detail.last(where: \.asleep).flatMap { last in detail.first { $0.date > last.date }?.value }
-    }
     var body: some View {
-        Card {
-            HStack {
-                Label {
-                    Text(L("bodyBattery")).font(AppTypography.cardTitle)
-                } icon: {
-                    Image(systemName: "bolt.heart.fill").foregroundStyle(AppColors.metric(.energy))
-                }
-                Spacer()
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+        Card(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "bolt.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(value.map { AppColors.battery($0 / 100) } ?? .secondary)
+                BatteryStrip(value: value, segments: 34, height: 18)
                 if let value {
-                    Text(number(value)).font(.system(size: 34, weight: .bold))
-                        .monospacedDigit().contentTransition(.numericText())
-                    Text("%").font(.subheadline.weight(.medium)).foregroundStyle(.secondary)
-                    Spacer()
+                    Text(number(value) + "%")
+                        .font(.headline).monospacedDigit()
+                        .frame(minWidth: 54, alignment: .trailing)
                 } else {
-                    // A dash followed by a percent sign reads as a broken value.
-                    Text(L("calibrating")).font(.title3.weight(.semibold)).foregroundStyle(.secondary)
-                    Spacer()
+                    Text(L("calibrating")).font(.caption).foregroundStyle(.secondary)
                 }
-            }
-            BatteryStrip(value: value, morning: morning)
-            if value != nil, !detail.isEmpty {
-                Text(L("batteryRechargedSpent")
-                        .replacingOccurrences(of: "{0}", with: number(detail.reduce(0) { $0 + $1.restoration }))
-                        .replacingOccurrences(of: "{1}", with: number(detail.reduce(0) { $0 + $1.stressDrain + $1.loadDrain + $1.baselineDrain })))
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text(L("batteryWaiting")).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -237,7 +248,7 @@ struct BodyBatteryCard: View {
     var body: some View {
         VStack(spacing: 18) {
             Card {
-                BatteryGauge(value: selected?.value, height: 92).padding(.horizontal, 2)
+                BatteryGauge(value: selected?.value, height: 104)
                 if let peak = summary.lastChargePeak, let at = summary.lastChargeAt {
                     Text(L("batteryLastCharge")
                             .replacingOccurrences(of: "{0}", with: number(peak))
@@ -354,9 +365,6 @@ private struct EnergyLegend: View {
     }
 }
 
-/// The day's curve. A point per fifteen-minute step scattered dozens of dots
-/// across the plot and hid the shape; the periods that matter are shown as
-/// bands behind the line instead, which is what the dots were trying to say.
 /// Energy across the day. The line is tinted by its own height — amber when
 /// depleted, green when full — and the night is marked as a band so the
 /// overnight climb is attributable at a glance.
@@ -503,43 +511,55 @@ private struct StressStripChart: View {
     }
 }
 
+/// "Stress today": when it last updated, the day's range as three figures each
+/// coloured by its own level, and the dial. Three numbers say more than one
+/// current value, which on a spiky signal is close to meaningless.
 struct StressTodayCard: View {
     let snapshot: DailySnapshot
     private var values: [Double] { snapshot.stress.map(\.value).filter(\.isFinite) }
+    private var current: Double? { snapshot.score(.stress).value }
+
     var body: some View {
-        Card(accent: AppColors.metric(.stress)) {
-            HStack {
-                Label {
-                    Text(L("stressToday")).font(AppTypography.cardTitle)
-                } icon: {
-                    Image(systemName: "waveform.path.ecg").foregroundStyle(AppColors.metric(.stress))
-                }
+        Card(spacing: 8) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(current.map { AppColors.stressLevel($0 / 100) } ?? .secondary)
+                    .frame(width: 9, height: 9)
+                Text(L("stressToday")).font(AppTypography.cardTitle)
                 Spacer()
-                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                Image(systemName: "arrow.right").font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(snapshot.stress.last.map { L("updatedAt") + " " + $0.date.formatted(date: .omitted, time: .shortened) } ?? L("calibrating"))
-                        .font(.caption2).foregroundStyle(.secondary)
-                    HStack(alignment: .top, spacing: 0) {
-                        statistic("min", values.min())
-                        statistic("average", Statistics.mean(values))
+            VStack(alignment: .leading, spacing: 6) {
+                Text(snapshot.stress.last.map { L("updatedAt") + " " + $0.date.formatted(date: .omitted, time: .shortened) } ?? L("calibrating"))
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 10) {
+                    HStack(spacing: 0) {
                         statistic("max", values.max())
+                        divider
+                        statistic("min", values.min())
+                        divider
+                        statistic("average", Statistics.mean(values))
                     }
+                    MetricGauge(value: current, size: 84, caption: current.map(StressEngine.band))
                 }
-                Spacer(minLength: 0)
-                MetricGauge(value: snapshot.score(.stress).value, size: 112,
-                            caption: snapshot.score(.stress).value.map(StressEngine.band))
             }
         }
     }
-    /// Equal columns so min, average and max line up instead of drifting with
-    /// the width of their numbers.
+    private var divider: some View {
+        Rectangle().fill(AppColors.border).frame(width: 1, height: 34)
+    }
+    /// Each figure takes the colour of its own level, so the range reads as a
+    /// range rather than as three neutral numbers.
     private func statistic(_ title: String, _ value: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(number(value))
+                .font(.title2.weight(.bold)).monospacedDigit()
+                .foregroundStyle(value.map { AppColors.stressLevel($0 / 100) } ?? .secondary)
             Text(L(title)).font(.caption2).foregroundStyle(.secondary)
-            Text(number(value)).font(.title3.weight(.bold)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 8)
     }
 }

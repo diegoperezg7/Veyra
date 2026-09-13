@@ -6,6 +6,9 @@ options:
     watchOS: '26.0'
   developmentLanguage: es
   knownRegions: [es, en]
+configFiles:
+  Debug: Local.xcconfig
+  Release: Local.xcconfig
 packages:
   PulseCore:
     path: PulseCore
@@ -14,9 +17,6 @@ settings:
     SWIFT_VERSION: '6.0'
     SWIFT_STRICT_CONCURRENCY: complete
     CODE_SIGN_STYLE: Automatic
-    # Deliberately absent: set your own team in Xcode, or create an untracked
-    # Local.xcconfig with DEVELOPMENT_TEAM = XXXXXXXXXX. Simulator builds need
-    # no team at all.
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 1.0.0
     ENABLE_USER_SCRIPT_SANDBOXING: YES

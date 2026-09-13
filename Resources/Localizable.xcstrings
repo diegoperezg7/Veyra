@@ -8999,6 +8999,23 @@
         }
       }
     },
+    "stressAndEnergy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stress and energy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estrés y energía"
+          }
+        }
+      }
+    },
     "stressCalibrating": {
       "extractionState": "manual",
       "localizations": {
