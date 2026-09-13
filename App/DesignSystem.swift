@@ -187,16 +187,21 @@ struct ScoreRing: View {
     private var width: CGFloat { max(9, size * 0.145) }
     private var fraction: Double { min(1, max(0, (value ?? 0) / 100)) }
 
-    /// Opaque throughout: light at the start of the arc, full colour at its head.
+    /// Opaque throughout: light where the arc begins, full colour at its head.
+    ///
+    /// Angles start at zero, **not** at −90. `rotationEffect` below rotates the
+    /// gradient along with the shape, so subtracting 90 here too offset the ramp
+    /// by a quarter turn and dropped its wrap point in the middle of the visible
+    /// arc — which is exactly what looked like the ring being cut.
     private var shade: AngularGradient {
-        let light = tint.mix(with: .white, by: onScene ? 0.32 : 0.48)
-        let mid = tint.mix(with: .white, by: onScene ? 0.14 : 0.20)
+        let light = tint.mix(with: .white, by: onScene ? 0.34 : 0.52)
+        let mid = tint.mix(with: .white, by: onScene ? 0.15 : 0.24)
         return AngularGradient(
             gradient: Gradient(colors: [light, mid, tint]),
             center: .center,
-            startAngle: .degrees(-90),
+            startAngle: .degrees(0),
             // Exactly the drawn arc, so the ramp is the same shape at any value.
-            endAngle: .degrees(-90 + 360 * max(0.12, sweep))
+            endAngle: .degrees(360 * max(0.12, sweep))
         )
     }
 
