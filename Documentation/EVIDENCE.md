@@ -106,34 +106,48 @@ Los componentes tienen referencia; los pesos (35/20/15/15/10/5) son nuestros.
 
 ---
 
-## Pendiente de revisar
+## Revisado (algoritmo v4)
 
-Puntos donde el cálculo actual es discutiblemente generoso:
+Los cuatro puntos donde el sueño era discutiblemente generoso, y en qué han
+quedado. Cada curva tiene un vector de prueba en `SleepScoreTests`.
 
-1. **Fases del sueño** puntúan 85 por ser *tu propia media*, no por acercarse a
-   los rangos publicados. Alguien con arquitectura pobre pero constante obtiene
-   una nota alta. Debería medirse contra N3 15–25% y REM 20–25%.
-2. **Eficiencia** se mapea directa: 80% (el límite inferior de lo normal) da 80
-   puntos. La banda útil debería ocupar más escala.
-3. **Continuidad** perdona hasta 10 minutos de vigilia y penaliza 0,8 por minuto
-   después; los datos normativos de WASO sugieren ser más estricto.
-4. **Duración** satura en 100 al alcanzar la necesidad y no distingue dormir de
-   más, que se asocia con peores desenlaces.
+1. **Fases del sueño.** Antes puntuaban 85 por ser *tu propia media*: alguien con
+   arquitectura pobre pero constante sacaba buena nota. Ahora se miden contra los
+   rangos publicados del adulto — N3 15–25% y REM 20–25% del sueño total — con
+   penalización fuerte por defecto (la mitad del límite inferior da cero) y suave
+   por exceso, porque el exceso de sueño restaurador no es en sí un problema. Una
+   noche que la fuente entrega sin fases devuelve nil en vez de inventar.
+2. **Eficiencia.** Antes se mapeaba directa y 80% — el límite inferior de lo
+   normal — daba 80 puntos, un notable. Ahora la escala se estira entre 65% y 95%,
+   así que ese mismo 80% queda en 50: un aprobado.
+3. **Continuidad.** Antes perdonaba 10 minutos de vigilia y penalizaba 0,8 por
+   minuto. Los datos normativos de WASO en adultos sanos llegan a unos 30 minutos,
+   así que ahora se perdonan 20 y la pendiente sube a 1,2: una hora despierto pasa
+   de 60 puntos a 52.
+4. **Duración.** Antes saturaba en 100 y trataba igual 8 horas que 12. Ahora hace
+   pico en la necesidad estimada y decae a partir del 115% de ella, porque dormir
+   mucho de más se asocia con peores desenlaces y casi siempre señala deuda o
+   enfermedad.
+
+También cambia el dip de frecuencia cardíaca nocturna: antes cualquier caída del
+20% ya saturaba el componente; ahora la escala va de 5% a 20%, que es el rango en
+el que el descenso nocturno discrimina.
 
 ---
 
-## Lo que un usuario podría querer y no calculamos
+## Implementado a partir de la lista anterior
 
-| Métrica | Por qué interesa | Viabilidad |
+Todas las métricas que faltaban están calculadas. Ninguna inventa un umbral: o la
+banda es de la literatura, o el umbral lo publica Apple y se lee de HealthKit.
+
+| Métrica | Referencia | Dónde se ve |
 | --- | --- | --- |
-| **Desviación de temperatura de muñeca** | Enfermedad, alcohol y fase del ciclo la mueven antes que otros signos | Alta: ya leemos el tipo, falta la línea base |
-| **Alteraciones respiratorias durante el sueño** | Apple publica el tipo desde iOS 18; es un cribado de apnea | Alta: añadir el tipo al catálogo |
-| **Punto medio del sueño / cronotipo** | Explica el desfase social y la somnolencia diurna | Alta: derivable de las sesiones |
-| **Notificaciones de ritmo irregular / fibrilación** | HealthKit expone la carga de FA | Media: tipo aparte |
-| **Estabilidad al caminar** | Apple la calcula y predice riesgo de caída | Media |
-| **Presión arterial con bandas** | La leemos pero no la clasificamos | Alta: bandas de la ESC/AHA |
-| **Percentil de VO₂máx** | Más informativo que la cifra suelta | Alta: ya tenemos las curvas |
-| **Tiempo en zonas por semana** | Contrasta con las guías de la OMS | Alta |
-
-Ninguna de estas requiere inventar nada: todas tienen una referencia publicada o
-las expone Apple directamente.
+| **Desviación de temperatura de muñeca** | Derivada: línea base propia de ≥5 noches. No hay umbral clínico para temperatura de muñeca de consumo, y las bandas se expresan como tales | Biología → Signos de alerta |
+| **Alteraciones respiratorias al dormir** | El umbral de "elevada" se lee de `HKAppleSleepingBreathingDisturbancesClassification`, no se fija aquí | Biología → Signos de alerta |
+| **Punto medio del sueño / cronotipo** | Cortes del MCTQ (Roenneberg). Es el punto medio sin corregir: MSFsc necesita separar días libres de laborables, que no distinguimos con fiabilidad | Biología → Signos de alerta |
+| **Carga de fibrilación auricular** | Terciles de KP-RHYTHM (Go et al., JAMA Cardiol 2018); el corte alto en 11,4% | Biología → Signos de alerta |
+| **Notificaciones de ritmo irregular** | Recuento de eventos de los últimos 90 días | Biología → Signos de alerta |
+| **Estabilidad al caminar** | Umbrales de `HKAppleWalkingSteadinessClassification` | Biología → Signos de alerta |
+| **Presión arterial** | ACC/AHA 2017 y, en paralelo, ESC/ESH 2023, que discrepan: 135/85 es grado 1 en Estados Unidos y normal-alta en Europa. Se muestran ambas. Clasifica sobre la mediana de varias tomas, nunca sobre una | Biología → Signos de alerta |
+| **Percentil de VO₂máx** | Mediana de la misma curva ACSM que usa la edad de bienestar, con aproximación normal a la dispersión del registro FRIEND (DE 7 hombres, 6 mujeres). Es una cifra derivada: no leer más de unos pocos puntos de precisión | Fitness → Frente a la población |
+| **Tiempo en zonas por semana** | OMS 2020: 150–300 min moderados o 75–150 vigorosos; los vigorosos cuentan doble. Intensidad por reserva cardíaca según ACSM. Estimación conservadora: andar rápido por debajo del 50% de reserva no se cuenta | Fitness → Frente a la población |

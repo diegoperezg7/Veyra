@@ -56,7 +56,14 @@ enum SampleData {
                 .init(id: "height", value: height, unit: "m", date: date),
                 .init(id: "bodyFat", value: bodyFat, unit: "%", date: date),
                 .init(id: "leanMass", value: leanMass, unit: "kg", date: date),
-                .init(id: "bmi", value: bmi, unit: "BMI", date: date)
+                .init(id: "bmi", value: bmi, unit: "BMI", date: date),
+                // Screening signals, so the demo history exercises the cards
+                // that interpret them. Values sit in the ordinary range: the
+                // sample data should not look like a patient.
+                .init(id: "breathingDisturbances", value: max(0, 0.9 + state.next(-0.5, 0.9)), unit: "", date: date),
+                .init(id: "steadiness", value: 72 + state.next(-3, 3), unit: "%", date: date),
+                .init(id: "systolic", value: 118 + state.next(-6, 8), unit: "mmHg", date: date),
+                .init(id: "diastolic", value: 76 + state.next(-4, 5), unit: "mmHg", date: date)
             ]
 
             let stress = stressTimeline(on: date, session: session, workouts: workouts, generator: &state)

@@ -9,11 +9,17 @@ struct BiologyView: View {
         BiologyHero(vitals: [latest("hrv"), latest("rhr"), latest("oxygen"), latest("respiratory")].compactMap { $0 })
         NavigationLink { BodyView() } label: { BodyCompositionCard(weight: latest("weight"), bodyFat: latest("bodyFat"), leanMass: latest("leanMass"), bmi: latest("bmi"), waist: latest("waist")) }.buttonStyle(.plain)
         Card { Text(L("healthMonitor")).font(AppTypography.cardTitle); ForEach(["hrv", "rhr", "respiratory", "temperature", "oxygen", "vo2", "glucose", "systolic", "diastolic"], id: \.self) { key in NavigationLink { VitalDetailView(key: key) } label: { ValueRow(title: key, value: latest(key).map { number($0.value, digits: 1) + " " + $0.unit } ?? "—", symbol: vitalSymbol(key)) }.buttonStyle(.plain) }; Text(L("latestAvailableDetail")).font(.caption).foregroundStyle(.secondary) }
+        if !screening.isEmpty { ScreeningCard(signals: screening) }
         Card(accent: AppColors.accent) { VStack(alignment: .leading, spacing: 10) { Label(L("dataSources"), systemImage: "arrow.triangle.2.circlepath").font(AppTypography.cardTitle); Text(L("scalesDetail")).font(.subheadline).foregroundStyle(.secondary); Label("Apple Health", systemImage: "checkmark.circle").font(.caption).foregroundStyle(AppColors.accent); Text(L("scalesReadOnly")).font(.caption).foregroundStyle(.secondary); Button { Task { await model.connectHealth() } } label: { Label(model.syncing ? L("connecting") : L("syncNow"), systemImage: model.syncing ? "hourglass" : "arrow.clockwise") }.buttonStyle(.borderedProminent).tint(AppColors.accent).disabled(model.syncing) } }
         Button { model.route = "documents" } label: { Card { SectionTitle(title: "healthRecords", symbol: "doc.text"); Text(L("healthRecordsDetail")).font(.subheadline).foregroundStyle(.secondary); Text("\(model.documents.count) " + L("documents")).font(.caption) } }.buttonStyle(.plain)
         Button { model.route = "cycle" } label: { Card { SectionTitle(title: "cycle", symbol: "circle.dotted"); Text(L(model.preferences.cycle ? "cycleEnabled" : "cycleOptional")).font(.subheadline).foregroundStyle(.secondary) } }.buttonStyle(.plain)
     }.padding(.horizontal, 18).padding(.top, 6).padding(.bottom, 24) }.pulsePage().navigationTitle(L("biology")).navigationBarTitleDisplayMode(.inline) }
     private func latest(_ key: String) -> Vital? { model.history.flatMap(\.vitals).last { $0.id == key } }
+    /// Readings that carry a published reference band. Built from whatever the
+    /// history holds, so the card only appears once something can be said.
+    private var screening: [ScreeningSignal] {
+        ScreeningSignals.build(history: model.history, birthDate: model.preferences.birthDate, sex: model.preferences.biologicalSex)
+    }
     private func vitalSymbol(_ key: String) -> String { switch key { case "hrv", "rhr": "heart"; case "respiratory", "oxygen": "lungs"; case "temperature": "thermometer.medium"; default: "waveform.path" } }
 }
 

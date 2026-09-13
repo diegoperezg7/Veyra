@@ -34,7 +34,13 @@ struct HomeView: View {
                                         .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(AppColors.ink)
                                         .lineLimit(1).minimumScaleFactor(0.75)
-                                }.frame(maxWidth: .infinity)
+                                }
+                                .frame(maxWidth: .infinity)
+                                // Without this the tappable area is only the
+                                // drawn pixels, so the hollow middle of the ring
+                                // swallows the tap — and before there is a score
+                                // to draw, almost the whole tile does.
+                                .contentShape(Rectangle())
                             }.buttonStyle(.plain).accessibilityIdentifier("score-" + metric.rawValue)
                         }
                     }

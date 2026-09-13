@@ -17,7 +17,7 @@ public struct DailyContext: Sendable {
 public enum DailyEngine {
     /// Bumped whenever the stored numbers change meaning, so Diagnostics can
     /// offer a recalculation and old snapshots stay identifiable.
-    public static let algorithmVersion = 3
+    public static let algorithmVersion = 4
 
     public static func calculate(date: Date, batch: HealthBatch, history: [DailySnapshot], baseSleep: Double = 480, maximumHR: Double = 185, preferredSleepSource: String? = nil, status: String = "active", context: DailyContext = .init(), calendar: Calendar = .current, now: Date = Date()) -> DailySnapshot {
         let history = history.filter { $0.date < date }.sorted { $0.date < $1.date }

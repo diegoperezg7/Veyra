@@ -30,30 +30,81 @@ public enum SleepEngine {
     ///   bedtimes, which only measures spread around your own average.
     public static func score(_ session: SleepSession?, need: Double, stageHistory: [Double] = [], onsetHistory: [Double] = [], hrDip: Double? = nil, regularity: Double? = nil) -> ScoreResult {
         guard let session, session.asleepMinutes > 0, need > 0 else { return .unavailable }
-        let duration = Statistics.clamp(session.asleepMinutes / need * 100)
+
+        // Duration peaks at the estimated need and is not improved by
+        // exceeding it. Long sleep is associated with worse outcomes and
+        // usually signals debt or illness, so past 115% of need the score eases
+        // back rather than sitting at a flat hundred.
+        let ratio = session.asleepMinutes / need
+        let duration = ratio <= 1
+            ? Statistics.clamp(ratio * 100)
+            : Statistics.clamp(100 - max(0, ratio - 1.15) * 150)
+
+        // Efficiency stretched across the band that carries meaning. Mapping
+        // the percentage straight through gave 80 points — a pass — to 80%,
+        // which is the *lower edge* of normal.
         let efficiency = Statistics.clamp(session.asleepMinutes / max(1, session.bedMinutes) * 100)
+        let efficiencyScore = Statistics.clamp((efficiency - 65) / 30 * 100)
+
+        // Wake after sleep onset. Normative WASO for healthy adults runs to
+        // about 30 minutes and rises with age, so 20 minutes is forgiven and
+        // the scale then falls at a rate that separates a settled night from a
+        // broken one.
         let awake = session.segments.filter { $0.stage == .awake }.reduce(0) { $0 + $1.minutes }
-        let continuity = Statistics.clamp(100 - max(0, awake - 10) * 0.8)
-        let restorative = session.segments.filter { $0.stage == .deep || $0.stage == .rem }.reduce(0) { $0 + $1.minutes } / session.asleepMinutes
-        let stageScore: Double? = BaselineEngine.calculate(stageHistory).flatMap { $0.count >= 7 && restorative > 0 ? Statistics.clamp(85 - abs($0.z(restorative, epsilon: 0.03)) * 15) : nil }
+        let continuity = Statistics.clamp(100 - max(0, awake - 20) * 1.2)
+
+        let stageScore = architectureScore(session)
         // The regularity index where it exists; the spread of bedtimes only as
         // a stand-in until there are enough consecutive days for the index.
         let consistency = regularity ?? Statistics.circularDeviation(onsetHistory).map { Statistics.clamp(100 - $0 * 0.6) }
+
         let contributors: [Contributor] = [
             .init("duration", value: session.asleepMinutes, score: duration, weight: 35, unit: "min"),
-            .init("efficiency", value: efficiency, score: efficiency, weight: 20, unit: "%"),
+            .init("efficiency", value: efficiency, score: efficiencyScore, weight: 20, unit: "%"),
             .init("continuity", value: awake, score: continuity, weight: 15, unit: "min"),
-            .init("stages", score: stageScore, weight: 15), .init("consistency", score: consistency, weight: 10),
-            .init("hrDip", value: hrDip, score: hrDip.map { Statistics.clamp($0 * 5) }, weight: 5, unit: "%")
+            .init("stages", value: stageScore.deepPercent, score: stageScore.score, weight: 15, unit: "%"),
+            .init("consistency", value: regularity, score: consistency, weight: 10),
+            .init("hrDip", value: hrDip, score: hrDip.map { Statistics.clamp(($0 - 5) / 15 * 100) }, weight: 5, unit: "%")
         ]
-        // A scored night needs no long baseline for duration and efficiency, so
-        // maturity is driven by the stage/consistency history behind it.
         let observations = max(stageHistory.count, onsetHistory.count)
         let report = ConfidenceEngine.evaluate(contributors: contributors, observations: max(observations, 7), target: 14)
         var result = ScoreMath.weighted(contributors, confidence: report.level)
         result.report = report
         return result
     }
+
+    /// Published adult sleep architecture: N3 (deep) 15–25% of total sleep time
+    /// and REM 20–25%. Scoring against these instead of against the sleeper's
+    /// own median matters: the previous version returned 85 points simply for
+    /// being typical *for you*, so consistently poor architecture scored well.
+    ///
+    /// Returns nil when the source reports no staging at all, because a night
+    /// recorded as undifferentiated sleep says nothing about architecture.
+    public static func architectureScore(_ session: SleepSession) -> (score: Double?, deepPercent: Double?, remPercent: Double?) {
+        let asleep = session.asleepMinutes
+        guard asleep > 0 else { return (nil, nil, nil) }
+        func minutes(_ stage: SleepStage) -> Double {
+            session.segments.filter { $0.stage == stage }.reduce(0) { $0 + $1.minutes }
+        }
+        let deep = minutes(.deep), rem = minutes(.rem)
+        guard deep > 0 || rem > 0 else { return (nil, nil, nil) }
+        let deepPercent = deep / asleep * 100, remPercent = rem / asleep * 100
+        // Deep and REM weigh equally: both are restorative and both are
+        // reported by the watch.
+        let score = (band(deepPercent, low: 15, high: 25) + band(remPercent, low: 20, high: 25)) / 2
+        return (Statistics.clamp(score), deepPercent, remPercent)
+    }
+
+    /// Full marks inside the reference band. Below it the penalty is steep —
+    /// half the lower bound scores zero — because a shortfall of restorative
+    /// sleep is the thing worth flagging. Above it the penalty is gentle, since
+    /// extra deep or REM sleep is not itself a problem.
+    private static func band(_ value: Double, low: Double, high: Double) -> Double {
+        if value < low { return Statistics.clamp(100 - (low - value) / low * 200) }
+        if value > high { return Statistics.clamp(100 - (value - high) / high * 100) }
+        return 100
+    }
+
     /// Overnight heart-rate dip as a percentage of the waking reference. A
     /// deeper dip indicates stronger parasympathetic recovery during sleep.
     public static func heartRateDip(nightly: [Double], waking: [Double]) -> Double? {

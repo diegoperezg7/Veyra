@@ -278,7 +278,7 @@ struct BodyBatteryCard: View {
 
                 Card {
                     Text(snapshot.date.formatted(date: .long, time: .omitted)).font(AppTypography.cardTitle)
-                    EnergyLevelChart(points: points, summary: summary, window: window, selection: $selectedTime)
+                    EnergyLevelChart(points: points, summary: summary, workouts: snapshot.workouts, window: window, selection: $selectedTime)
                     StressStripChart(points: snapshot.stress, window: window, selection: $selectedTime)
                         .padding(.top, 6)
                     EnergyLegend(hasPredicted: points.contains(where: \.predicted))
@@ -371,21 +371,45 @@ private struct EnergyLegend: View {
 private struct EnergyLevelChart: View {
     let points: [TimelinePoint]
     let summary: EnergySummary
+    let workouts: [WorkoutSummary]
     let window: ClosedRange<Date>?
     @Binding var selection: Date?
+
+    /// Workouts long enough to read as a band. Anything shorter is a sliver the
+    /// icon would not fit into, and it clutters the night more than it explains.
+    private var bands: [WorkoutSummary] {
+        workouts.filter { $0.minutes >= 10 }.sorted { $0.start < $1.start }
+    }
 
     private var nearest: TimelinePoint? {
         guard let selection else { return nil }
         return points.min { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) }
     }
 
+    /// The activity names are the ones `HealthKitClient.activityName` produces.
+    static func symbol(for activity: String) -> String {
+        switch activity {
+        case "running": "figure.run"
+        case "walking": "figure.walk"
+        case "hiking": "figure.hiking"
+        case "cycling": "figure.outdoor.cycle"
+        case "strength", "functionalStrength": "dumbbell.fill"
+        case "hiit": "bolt.heart.fill"
+        case "yoga": "figure.yoga"
+        case "rowing": "figure.rower"
+        case "elliptical": "figure.elliptical"
+        case "stairs": "figure.stair.stepper"
+        case "swimming": "figure.pool.swim"
+        case "martialArts": "figure.martial.arts"
+        case "coreTraining": "figure.core.training"
+        default: "figure.mixed.cardio"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(L("energyLevel")).font(.caption.weight(.semibold)).foregroundStyle(.secondary).textCase(.uppercase)
-                if summary.sleepSpan != nil {
-                    Image(systemName: "moon.stars.fill").font(.caption2).foregroundStyle(AppColors.metric(.sleep))
-                }
                 Spacer()
                 if let nearest {
                     Text(number(nearest.value) + "%").font(.caption.weight(.bold)).monospacedDigit()
@@ -396,6 +420,19 @@ private struct EnergyLevelChart: View {
                 if let sleep = summary.sleepSpan {
                     RectangleMark(xStart: .value("from", sleep.lowerBound), xEnd: .value("to", sleep.upperBound))
                         .foregroundStyle(AppColors.metric(.sleep).opacity(0.14))
+                        // Inside the band, at its top and centred: an
+                        // annotation placed *above* the plot is cut off by the
+                        // clipping the series need.
+                        .annotation(position: .overlay, alignment: .top, spacing: 0) {
+                            BandBadge(symbol: "bed.double.fill", tint: AppColors.metric(.sleep))
+                        }
+                }
+                ForEach(bands) { workout in
+                    RectangleMark(xStart: .value("from", workout.start), xEnd: .value("to", workout.end))
+                        .foregroundStyle(AppColors.metric(.strain).opacity(0.14))
+                        .annotation(position: .overlay, alignment: .top, spacing: 0) {
+                            BandBadge(symbol: Self.symbol(for: workout.activity), tint: AppColors.metric(.strain))
+                        }
                 }
                 ForEach(points) { point in
                     AreaMark(x: .value("t", point.date), y: .value("v", point.value))
@@ -433,6 +470,22 @@ private struct EnergyLevelChart: View {
             .chartPlotStyle { $0.clipped() }
             .frame(height: 160)
         }
+    }
+}
+
+/// The marker that names a shaded band on the timeline: a small filled circle
+/// with a symbol, centred on the band it labels.
+private struct BandBadge: View {
+    var symbol: String
+    var tint: Color
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(AppColors.background)
+            .frame(width: 18, height: 18)
+            .background(tint.opacity(0.9), in: Circle())
+            .padding(.top, 4)
+            .accessibilityHidden(true)
     }
 }
 

@@ -37,7 +37,7 @@ struct RootView: View {
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
         .sheet(isPresented: Binding(get: { model.route != nil }, set: { if !$0 { model.route = nil } })) {
-            NavigationStack { RouteView(route: model.route ?? "").toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("close"), systemImage: "xmark") { model.route = nil }.labelStyle(.iconOnly) } } }
+            NavigationStack { RouteView(route: model.route ?? "").toolbar { ToolbarItem(placement: .cancellationAction) { Button(L("close"), systemImage: "xmark") { model.route = nil }.labelStyle(.iconOnly).accessibilityIdentifier("close-route") } } }
         }
         .fullScreenCover(isPresented: Binding(get: { !model.preferences.onboarded }, set: { _ in })) { OnboardingView() }
         .alert(L("attention"), isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) { Button(L("ok")) { model.errorMessage = nil } } message: { Text(model.errorMessage ?? "") }

@@ -36,7 +36,12 @@ import PulseCore
     private var anchors: [String: Data] = [:]
     private var observers: [HKObserverQuery] = []
     private let observerStore = HKHealthStore()
-    var today: DailySnapshot { history.first { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) } ?? DailySnapshot(date: selectedDate) }
+    /// The placeholder for a day with no data must be *stable*: `DailySnapshot`
+    /// defaults `updatedAt` to now, so returning a freshly built one made every
+    /// evaluation compare unequal to the last. Observation then invalidated the
+    /// views continuously, and on a first launch — before Health is connected —
+    /// that left the score buttons unable to present their detail sheet.
+    var today: DailySnapshot { history.first { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) } ?? DailySnapshot(date: selectedDate, updatedAt: .distantPast) }
     var activeSession: StrengthSession? { sessions.last { $0.end == nil } }
     init(store: LocalStore) throws {
         self.store = store

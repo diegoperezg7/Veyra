@@ -48,6 +48,13 @@ enum HealthCatalog {
         .init(key: "stand", identifier: .appleStandTime, unit: "min", displayUnit: "min", cumulative: true),
         .init(key: "flights", identifier: .flightsClimbed, unit: "count", displayUnit: "floors", cumulative: true),
         .init(key: "vo2", identifier: .vo2Max, unit: "ml/kg*min", displayUnit: "ml/kg/min"),
+        // Sleep apnoea screening, iOS 18. Reported per night as a unitless
+        // count; the elevated threshold comes from Apple, not from us.
+        .init(key: "breathingDisturbances", identifier: .appleSleepingBreathingDisturbances, unit: "count", displayUnit: ""),
+        // Only produced for people who enabled AFib History after entering a
+        // diagnosis, so its absence carries no meaning.
+        .init(key: "afibBurden", identifier: .atrialFibrillationBurden, unit: "%", displayUnit: "%"),
+        .init(key: "steadiness", identifier: .appleWalkingSteadiness, unit: "%", displayUnit: "%"),
         .init(key: "walkingHR", identifier: .walkingHeartRateAverage, unit: "count/min", displayUnit: "bpm"),
         .init(key: "hrRecovery", identifier: .heartRateRecoveryOneMinute, unit: "count/min", displayUnit: "bpm"),
         .init(key: "weight", identifier: .bodyMass, unit: "kg", displayUnit: "kg"),
@@ -69,8 +76,25 @@ enum HealthCatalog {
         .init(key: "cyclingSpeed", identifier: .cyclingSpeed, unit: "m/s", displayUnit: "m/s"),
         .init(key: "effort", identifier: .workoutEffortScore, unit: "count", displayUnit: "RPE")
     ]
+    /// Category types read alongside the quantities. Irregular rhythm
+    /// notifications are events, not measurements, so they have no value to
+    /// average — only a date and a count.
+    static let categories: [HKCategoryTypeIdentifier] = [.sleepAnalysis, .irregularHeartRhythmEvent]
     static var readTypes: Set<HKObjectType> {
-        Set(quantities.compactMap { HKQuantityType.quantityType(forIdentifier: $0.identifier) } + [HKObjectType.workoutType() as HKSampleType, HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!])
+        Set(quantities.compactMap { HKQuantityType.quantityType(forIdentifier: $0.identifier) }
+            + [HKObjectType.workoutType() as HKSampleType]
+            + categories.compactMap { HKObjectType.categoryType(forIdentifier: $0) as HKSampleType? })
+    }
+    /// The value at which Apple itself calls sleeping breathing disturbances
+    /// elevated. Read from HealthKit so Veyra can never disagree with the
+    /// Health app about the same night.
+    static var breathingDisturbanceThreshold: Double? {
+        HKAppleSleepingBreathingDisturbancesClassification.elevated.minimum.doubleValue(for: .count())
+    }
+    /// Apple's walking steadiness cut-offs, as percentages.
+    static var walkingSteadinessThresholds: (low: Double, veryLow: Double) {
+        (HKAppleWalkingSteadinessClassification.low.minimum.doubleValue(for: .percent()) * 100,
+         HKAppleWalkingSteadinessClassification.veryLow.minimum.doubleValue(for: .percent()) * 100)
     }
 }
 struct HealthChanges: Sendable { var anchors: [String: Data]; var affected: Set<Date>; var deleted: Bool }
@@ -138,6 +162,12 @@ actor HealthKitClient: HealthDataRepository {
                 guard let sample = sample as? HKCategorySample, let stage = SleepStage(rawValue: sample.value) else { return nil }
                 return .init(id: sample.uuid, start: sample.startDate, end: sample.endDate, stage: stage, source: sample.sourceRevision.source.bundleIdentifier)
             }
+        }
+        // Irregular rhythm notifications arrive as events. Recorded as a vital
+        // of value 1 so they land on the timeline with everything else.
+        if let type = HKObjectType.categoryType(forIdentifier: .irregularHeartRhythmEvent) {
+            let events = try await samples(type, predicate: predicate)
+            vitals += events.map { .init(id: "irregularRhythm", value: 1, unit: "", date: $0.startDate) }
         }
         let heartRates = vitals.filter { $0.id == "hr" }.sorted { $0.date < $1.date }
         // Resting heart rate drifts over weeks, so a single median across the
