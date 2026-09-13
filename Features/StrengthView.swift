@@ -275,16 +275,41 @@ struct ActiveStrengthView: View {
         ScrollView {
             VStack(spacing: 18) {
                 summary(session)
-                ForEach(session.exerciseOrder, id: \.self) { id in
-                    ExerciseBlock(
-                        exercise: model.exercise(id),
-                        fallbackName: id,
-                        sets: session.sets.filter { $0.exerciseID == id },
-                        previous: StrengthHistoryEngine.lastSets(exercise: id, in: model.sessions.filter { $0.id != session.id }),
-                        onChange: update,
-                        onAdd: { addSet(id) },
-                        onRemove: { remove($0) }
-                    )
+                ForEach(Array(MuscleTensionEngine.groups(session.sets).enumerated()), id: \.offset) { _, group in
+                    VStack(spacing: 10) {
+                        if group.count > 1 {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.triangle.2.circlepath").font(.caption2)
+                                Text(L("superset")).font(.caption.weight(.semibold))
+                                Spacer()
+                                Button(L("ungroup")) { ungroup(group) }
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            .foregroundStyle(AppColors.accent)
+                            .padding(.horizontal, 4)
+                        }
+                        ForEach(group, id: \.self) { id in
+                            ExerciseBlock(
+                                exercise: model.exercise(id),
+                                fallbackName: id,
+                                sets: session.sets.filter { $0.exerciseID == id },
+                                previous: StrengthHistoryEngine.lastSets(exercise: id, in: model.sessions.filter { $0.id != session.id }),
+                                grouped: group.count > 1,
+                                canGroup: canGroup(id),
+                                onChange: update,
+                                onAdd: { addSet(id) },
+                                onRemove: { remove($0) },
+                                onGroup: { groupWithPrevious(id) }
+                            )
+                        }
+                    }
+                    .padding(group.count > 1 ? 8 : 0)
+                    .background {
+                        if group.count > 1 {
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                .fill(AppColors.accentSoft.opacity(0.55))
+                        }
+                    }
                 }
                 Button { pickingExercise = true } label: {
                     Label(L("addExercise"), systemImage: "plus")
@@ -353,6 +378,40 @@ struct ActiveStrengthView: View {
         }
         persist(current)
     }
+    /// An exercise can join the one before it as long as that one is not
+    /// already in a group with something else.
+    private func canGroup(_ id: String) -> Bool {
+        guard let session else { return false }
+        let order = session.exerciseOrder
+        guard let index = order.firstIndex(of: id), index > 0 else { return false }
+        return true
+    }
+
+    /// Marks this exercise and the one performed before it as a superset: two
+    /// movements alternated rather than done one after the other.
+    private func groupWithPrevious(_ id: String) {
+        guard var current = session else { return }
+        let order = current.exerciseOrder
+        guard let index = order.firstIndex(of: id), index > 0 else { return }
+        let previous = order[index - 1]
+        // Reuse the previous exercise's tag when it already has one, so a third
+        // movement joins the same superset instead of starting another.
+        let existing = current.sets.first { $0.exerciseID == previous && !$0.superset.isEmpty }?.superset
+        let tag = existing ?? UUID().uuidString
+        for position in current.sets.indices where current.sets[position].exerciseID == id || current.sets[position].exerciseID == previous {
+            current.sets[position].superset = tag
+        }
+        persist(current)
+    }
+
+    private func ungroup(_ group: [String]) {
+        guard var current = session else { return }
+        for position in current.sets.indices where group.contains(current.sets[position].exerciseID) {
+            current.sets[position].superset = ""
+        }
+        persist(current)
+    }
+
     private func update(_ set: StrengthSet) {
         guard var current = session, let index = current.sets.firstIndex(where: { $0.id == set.id }) else { return }
         current.sets[index] = set
@@ -389,9 +448,12 @@ private struct ExerciseBlock: View {
     var fallbackName: String
     var sets: [StrengthSet]
     var previous: [StrengthSet]
+    var grouped = false
+    var canGroup = false
     var onChange: (StrengthSet) -> Void
     var onAdd: () -> Void
     var onRemove: (StrengthSet) -> Void
+    var onGroup: () -> Void = {}
 
     var body: some View {
         Card(spacing: 12) {

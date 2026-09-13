@@ -113,6 +113,12 @@ regularity, steps, stress and body composition. The correction is scaled by the
 confidence, so with little data the estimate stays close to your real age rather
 than asserting a swing it cannot support.
 
+The screen breaks that down: **what each signal is doing to the number, in
+years**. VO₂max −4.2, resting heart rate −0.3, body fat +1.0. The contributions
+add up to exactly the difference from your chronological age, so the breakdown
+explains the number above it instead of merely resembling it — which the
+previous version, listing raw per-signal years that did not sum, did not.
+
 ### A workout, in full
 
 Apple Health records a session; it does not explain it. Opening a workout shows
@@ -122,6 +128,19 @@ three-zone cardio focus, the session's own Edwards load against your usual
 sessions and its share of the day, and the heart-rate recovery the watch
 measured. Health stores no exercises, sets or weights, so the screen offers to
 log them — and shows them there once you have.
+
+### What a session was made of
+
+A logged lifting session shows its split between lifting and cardiovascular work
+— the same two components strain is built from, so the two can never disagree —
+and a ring of muscle tension. That split is counted in **effective sets**, not
+kilograms: hypertrophy research counts volume in sets per muscle per week,
+kilograms are not comparable between a squat and a curl, and bodyweight work
+would otherwise count as nothing. Each set counts whole for the primary muscle
+and half for each secondary one.
+
+Exercises performed together can be grouped as a superset while logging, and the
+session shows them that way afterwards.
 
 ### Training log
 

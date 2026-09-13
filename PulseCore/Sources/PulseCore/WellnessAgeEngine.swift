@@ -34,6 +34,26 @@ public struct WellnessAgeInputs: Sendable {
 }
 
 /// One signal's contribution, in years, with the observation behind it.
+/// What one signal actually did to the estimate, in years.
+///
+/// `AgeFactor.years` is the raw reading before weighting; this is the share of
+/// the final number that signal is responsible for. The effects sum exactly to
+/// the difference between the estimate and the chronological age, so the screen
+/// can show "sleep is costing you 0.4 years" and have it be literally true.
+public struct AgeEffect: Codable, Sendable, Equatable, Identifiable {
+    public var id: String { key }
+    public var key: String
+    /// Positive ages you, negative makes you younger.
+    public var years: Double
+    public var value: Double
+    public var unit: String
+    /// What this signal would be for someone of your chronological age.
+    public var expected: Double?
+    public init(key: String, years: Double, value: Double, unit: String, expected: Double? = nil) {
+        self.key = key; self.years = years; self.value = value; self.unit = unit; self.expected = expected
+    }
+}
+
 public struct AgeFactor: Sendable, Equatable, Identifiable {
     public var id: String { key }
     /// Localisation key: "vo2", "rhr", "hrv", "sleep", "activity"…
@@ -61,15 +81,19 @@ public struct WellnessAgeEstimate: Codable, Sendable, Equatable, Identifiable {
     /// Cardiorespiratory fitness expressed as an age, when VO2max is available.
     /// This is the anchor of the estimate and is worth showing on its own.
     public var fitnessAge: Double?
+    /// Per-signal contribution in years. Optional for backward-compatible
+    /// decoding of estimates stored by earlier versions.
+    public var effects: [AgeEffect]?
     public var id: Date { date }
     public var confidence: Confidence { report.level }
     public var range: ClosedRange<Double> { (age - margin)...(age + margin) }
     public var delta: Double { age - chronologicalAge }
 
-    public init(date: Date = Date(), age: Double, chronologicalAge: Double, margin: Double, report: ConfidenceReport, contributors: [Contributor], fitnessAge: Double? = nil) {
+    public init(date: Date = Date(), age: Double, chronologicalAge: Double, margin: Double, report: ConfidenceReport, contributors: [Contributor], fitnessAge: Double? = nil, effects: [AgeEffect]? = nil) {
         self.date = date; self.age = age; self.chronologicalAge = chronologicalAge
         self.margin = margin; self.report = report; self.contributors = contributors
         self.fitnessAge = fitnessAge
+        self.effects = effects
     }
 }
 
@@ -257,13 +281,26 @@ public enum WellnessAgeEngine {
         let trusted = adjustment * Statistics.clamp(report.percent / 100, 0, 1)
         let margin = Statistics.clamp(1.5 + 8 * (1 - report.percent / 100), 1.5, 10)
 
+        // Each signal's share of the final correction. The raw weighted years
+        // are rescaled by whatever the clamp and the confidence did to the
+        // total, so the effects add up to exactly the correction applied —
+        // otherwise the breakdown would not explain the number above it.
+        let weighted = factors.map { ($0, $0.years * $0.weight / max(1, presentWeight)) }
+        let rawTotal = weighted.reduce(0) { $0 + $1.1 }
+        let scale = abs(rawTotal) < 0.0001 ? 0 : trusted / rawTotal
+        let effects = weighted
+            .map { AgeEffect(key: $0.0.key, years: $0.1 * scale, value: $0.0.value,
+                             unit: $0.0.unit, expected: $0.0.expected) }
+            .sorted { $0.years > $1.years }
+
         return .init(date: date,
                      age: Statistics.clamp(chronologicalAge + trusted, 18, 100),
                      chronologicalAge: chronologicalAge,
                      margin: margin,
                      report: report,
                      contributors: contributors(factors: factors, missing: missing, totalWeight: totalWeight),
-                     fitnessAge: anchor)
+                     fitnessAge: anchor,
+                     effects: effects)
     }
 
     /// Chronological age in years from a birth date, or nil when absent or absurd.

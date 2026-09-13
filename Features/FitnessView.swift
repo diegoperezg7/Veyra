@@ -26,6 +26,9 @@ struct FitnessView: View {
         }
         return (Array(a.suffix(range)), Array(c.suffix(range)))
     }
+    private var loggedSessions: [StrengthSession] {
+        model.sessions.filter { $0.end != nil }
+    }
     private var workouts: [WorkoutSummary] {
         model.history.flatMap(\.workouts).sorted { $0.start > $1.start }
     }
@@ -52,6 +55,8 @@ struct FitnessView: View {
                     tile("steps", model.today.vital("steps")?.value, "", "shoeprints.fill", AppColors.accent)
                     tile("activeEnergy", model.today.vital("activeEnergy")?.value, "kcal", "flame.fill", AppColors.metric(.strain))
                 }
+                ActivityCalendarCard(history: model.history)
+                ActivitySummaryCard(history: model.history)
 
                 Card {
                     HStack {
@@ -73,6 +78,10 @@ struct FitnessView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 FitnessStandardsCard(vo2: vo2, percentile: vo2Percentile, activity: weeklyActivity)
+                if !loggedSessions.isEmpty {
+                    StrengthVolumeCard(sessions: loggedSessions, catalogue: model.exercises)
+                    StrengthProgressCard(sessions: loggedSessions, catalogue: model.exercises)
+                }
 
                 Card {
                     Text(L("activity")).font(AppTypography.cardTitle)
@@ -116,6 +125,9 @@ struct FitnessView: View {
             }.padding(.horizontal, 18).padding(.top, 6).padding(.bottom, 24)
         }
         .pulsePage().navigationTitle(L("fitness")).navigationBarTitleDisplayMode(.inline)
+        // The strength cards name exercises and group them by muscle, so this
+        // screen needs the catalogue too.
+        .task { await model.loadExercises() }
     }
 
     private func tile(_ key: String, _ value: Double?, _ unit: String, _ symbol: String, _ tint: Color) -> some View {
@@ -188,37 +200,54 @@ private struct LoadChart: View {
 
 private struct WorkoutRow: View {
     let workout: WorkoutSummary
+
+    /// The figures that exist for this session, in a row of their own. Packed
+    /// onto the same line as the duration they wrapped mid-unit — "602" on one
+    /// line and "kcal" on the next.
+    private var figures: [String] {
+        var values: [String] = []
+        if let distance = workout.distanceMeters, distance > 0 {
+            values.append(number(distance / 1000, digits: 1) + " km")
+        }
+        if let calories = workout.calories, calories > 0 { values.append(number(calories) + " kcal") }
+        if let average = workout.averageHeartRate { values.append(number(average) + " bpm") }
+        return values
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: symbol).font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(AppColors.metric(.strain), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L(workout.activity)).font(.subheadline.weight(.medium))
+                .frame(width: 34, height: 34)
+                .background(AppColors.metric(.strain), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(L(workout.activity)).font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 8)
+                    Text(duration(workout.minutes))
+                        .font(.subheadline.weight(.semibold)).monospacedDigit()
+                }
                 Text(workout.start.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption2).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 6)
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(duration(workout.minutes)).font(.subheadline.weight(.semibold)).monospacedDigit()
-                HStack(spacing: 6) {
-                    if let distance = workout.distanceMeters, distance > 0 {
-                        Text(number(distance / 1000, digits: 1) + " km")
+                if !figures.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(Array(figures.enumerated()), id: \.offset) { index, value in
+                            if index > 0 {
+                                Circle().fill(AppColors.border).frame(width: 3, height: 3)
+                            }
+                            Text(value)
+                        }
                     }
-                    if let calories = workout.calories, calories > 0 {
-                        Text(number(calories) + " kcal")
-                    }
-                    if let average = workout.averageHeartRate {
-                        Text(number(average) + " bpm")
-                    }
+                    .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.8)
                 }
-                .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
             }
-            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+            Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary).padding(.top, 3)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 7)
     }
+
     private var symbol: String { WorkoutStyle.symbol(workout.activity) }
 }
 

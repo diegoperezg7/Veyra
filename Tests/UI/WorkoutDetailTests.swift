@@ -52,3 +52,33 @@ final class WorkoutDetailTests: XCTestCase {
                       "el entrenamiento de hoy no aparece en Inicio")
     }
 }
+
+/// A lifting session recorded by the watch and logged in the app shows what it
+/// was made of: the split between lifting and cardiovascular work, and which
+/// muscles carried it.
+extension WorkoutDetailTests {
+    @MainActor func testStrengthWorkoutShowsItsBreakdown() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--seed", "--tab", "home"]
+        app.launch()
+
+        let card = app.staticTexts["Entrenamiento de hoy"]
+        var attempts = 0
+        while !card.exists && attempts < 6 { app.swipeUp(); attempts += 1 }
+        XCTAssertTrue(card.waitForExistence(timeout: 15))
+
+        // The lifting session, not the run.
+        let row = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] 'fuerza'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "no hay entrenamiento de fuerza de hoy")
+        row.tap()
+
+        for section in ["Desglose del entrenamiento", "Tensión muscular", "Peso total"] {
+            var scrolls = 0
+            while !app.staticTexts[section].exists && scrolls < 6 { app.swipeUp(); scrolls += 1 }
+            XCTAssertTrue(app.staticTexts[section].exists, "falta «\(section)»")
+        }
+        // The split names both halves.
+        XCTAssertTrue(app.staticTexts["Muscular"].exists)
+        XCTAssertTrue(app.staticTexts["Cardio"].exists)
+    }
+}

@@ -191,6 +191,31 @@ lo advierte: el reparto por zonas solo cubre ese tramo.
 
 ---
 
+## Desglose de una sesión de fuerza
+
+| Cálculo | Nivel | Fundamento |
+| --- | --- | --- |
+| **Tensión muscular** | Derivado | Reparto por **series efectivas**, no por kilos: la literatura de hipertrofia cuenta el volumen en series por músculo y por semana (Schoenfeld y cols.), porque los kilos de una sentadilla y de un curl no son comparables y el trabajo con peso corporal contaría cero. Cada serie cuenta entera para el músculo principal y **media** para cada secundario; esa mitad es decisión nuestra, contar en series no |
+| **Muscular frente a cardio** | Publicado (por composición) | Es el mismo reparto del que ya se compone el esfuerzo: carga de zonas cardíacas (Edwards) frente a carga de fuerza. No introduce aritmética nueva, así que no puede contradecir la puntuación de esfuerzo |
+| **Peso total y repeticiones** | — | Suma directa de las series marcadas. No es una estimación |
+
+---
+
+## Qué suma y qué resta en la edad biológica
+
+Cada señal muestra **los años de los que es responsable en la estimación**, no
+su lectura en bruto. La contribución de cada una se obtiene ponderando su
+desviación, y después reescalando el conjunto por lo que el tope y la confianza
+hicieron al total. Así la suma de las contribuciones es **exactamente** la
+diferencia entre la estimación y la edad cronológica: el desglose explica el
+número que hay encima, en vez de parecerse a él.
+
+La versión anterior de esa tarjeta listaba los años en bruto de cada señal, que
+no sumaban a la diferencia mostrada y por tanto no la explicaban. Hay un test
+que fija la igualdad.
+
+---
+
 ## Catálogo de ejercicios
 
 268 ejercicios con ilustraciones, músculos, material e instrucciones, derivados

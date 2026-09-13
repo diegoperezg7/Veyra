@@ -245,11 +245,25 @@ struct WellnessAgeView: View {
                     }
                 }
 
+                // What each signal is doing to the number, in years. This
+                // replaced a card that listed each signal's raw reading in
+                // years: those did not add up to the difference from your real
+                // age, so they could not explain it.
                 if let estimate {
-                    Card {
-                        Text(L("signalsAndYears")).font(AppTypography.cardTitle)
-                        ForEach(estimate.contributors) { contributor in
-                            AgeSignalRow(contributor: contributor)
+                    Card(spacing: 12) {
+                        Label(L("whatMovesYourAge"), systemImage: "arrow.up.arrow.down")
+                            .font(AppTypography.cardTitle)
+                        if let effects = estimate.effects, !effects.isEmpty {
+                            ForEach(effects) { effect in
+                                AgeEffectRow(effect: effect)
+                                if effect.id != effects.last?.id { Divider().overlay(AppColors.divider) }
+                            }
+                            Text(L("whatMovesYourAgeDetail")).font(.caption2).foregroundStyle(.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            ForEach(estimate.contributors) { contributor in
+                                AgeSignalRow(contributor: contributor)
+                            }
                         }
                         ForEach(estimate.report.limitations, id: \.self) { limitation in
                             Label(L(limitation), systemImage: "exclamationmark.circle")
@@ -370,5 +384,45 @@ private struct AgeSignalRow: View {
             .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
         }
         .padding(.vertical, 2)
+    }
+}
+
+
+/// One signal's contribution to the estimate, in years. Negative is good: it
+/// means that signal is making you younger than your birthday says.
+private struct AgeEffectRow: View {
+    var effect: AgeEffect
+
+    private var helps: Bool { effect.years < 0 }
+    private var tint: Color { helps ? AppColors.accent : AppColors.metric(.strain) }
+    /// Anything under a tenth of a year is noise, not a finding.
+    private var meaningful: Bool { abs(effect.years) >= 0.05 }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: meaningful ? (helps ? "arrow.down" : "arrow.up") : "equal")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(meaningful ? tint : Color.secondary)
+                .frame(width: 24, height: 24)
+                .background((meaningful ? tint : Color.secondary).opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L(effect.key)).font(.subheadline.weight(.medium))
+                HStack(spacing: 4) {
+                    Text(number(effect.value, digits: effect.value < 100 ? 1 : 0) + " " + effect.unit)
+                    if let expected = effect.expected {
+                        Text("·")
+                        Text(L("reference") + " " + number(expected, digits: expected < 100 ? 1 : 0))
+                    }
+                }
+                .font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 6)
+            Text(meaningful
+                 ? (effect.years > 0 ? "+" : "−") + number(abs(effect.years), digits: 1) + " " + L("yearsShort")
+                 : "—")
+                .font(.subheadline.weight(.semibold)).monospacedDigit()
+                .foregroundStyle(meaningful ? tint : Color.secondary)
+        }
+        .padding(.vertical, 4)
     }
 }

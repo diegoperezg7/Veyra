@@ -12,16 +12,24 @@ enum SampleData {
     /// A few logged strength workouts, so the training screens have something
     /// to show in review builds and screenshots. In-memory only, like the rest
     /// of the sample history.
+    /// Days on which the sample data logs a strength session, as offsets back
+    /// from today. The generated history puts a matching watch workout on the
+    /// same days so the two line up, which is what happens in reality.
+    static let strengthDays = [0, 2, 4]
+
     static func strengthSessions(now: Date = Date(), calendar: Calendar = .current) -> [StrengthSession] {
         let plans: [(Int, String, [(String, Int, Double, Int)])] = [
-            (2, "Empuje", [("bench-press", 10, 62.5, 4), ("incline-bench-press", 10, 45, 3),
+            (strengthDays[0], "Empuje", [("bench-press", 10, 62.5, 4), ("incline-bench-press", 10, 45, 3),
                            ("low-triceps-extension-with-cable", 12, 25, 3)]),
-            (4, "Pierna", [("barbell-squat", 8, 90, 4), ("leg-press", 12, 140, 3),
+            (strengthDays[1], "Pierna", [("barbell-squat", 8, 90, 4), ("leg-press", 12, 140, 3),
                            ("barbell-dead-lifts", 6, 110, 3)]),
-            (6, "Tirón", [("seated-cable-rows", 10, 55, 4), ("biceps-curls-with-barbell", 12, 30, 3)])
+            (strengthDays[2], "Tirón", [("seated-cable-rows", 10, 55, 4), ("biceps-curls-with-barbell", 12, 30, 3)])
         ]
         return plans.compactMap { daysAgo, name, blocks in
-            guard let start = calendar.date(byAdding: .day, value: -daysAgo, to: now) else { return nil }
+            guard let day = calendar.date(byAdding: .day, value: -daysAgo, to: now),
+                  var start = calendar.date(bySettingHour: 18, minute: 5, second: 0, of: day) else { return nil }
+            // Today's session cannot be in the future.
+            if start.addingTimeInterval(58 * 60) > now { start = now.addingTimeInterval(-80 * 60) }
             var sets: [StrengthSet] = []
             for (exercise, reps, weight, count) in blocks {
                 for index in 0..<count {
@@ -63,7 +71,13 @@ enum SampleData {
             // Today always has one: it is the day the screens are showing, and
             // an empty "today" makes the workout screens look broken in review
             // builds and screenshots.
-            let workouts = (offset == 0 || offset % 3 == 1) ? [workout(on: date, generator: &state, now: now)] : []
+            var workouts = (offset == 0 || offset % 3 == 1) ? [workout(on: date, generator: &state, now: now)] : []
+            // A lifting day gets the workout the watch would have recorded next
+            // to the logged session, so the detail screen can pair them.
+            if strengthDays.contains(offset), var start = calendar.date(bySettingHour: 18, minute: 5, second: 0, of: date) {
+                if start.addingTimeInterval(58 * 60) > now { start = now.addingTimeInterval(-80 * 60) }
+                workouts.append(strengthWorkout(start: start, generator: &state))
+            }
             let strain = Statistics.clamp((workouts.isEmpty ? 26 : 58) + wave * 6 + state.next(-8, 8))
 
             let vitals: [Vital] = [
@@ -212,6 +226,35 @@ enum SampleData {
                      heartRate: series,
                      averageHeartRate: Statistics.mean(values), maximumHeartRate: values.max(),
                      heartRateRecovery: 28 + generator.next(-6, 6),
+                     restingHeartRate: resting, maximumHeartRateReference: maximum)
+    }
+
+    /// The watch's record of a lifting session: heart rate that sits low
+    /// between sets and climbs during them, which is why so much of it lands in
+    /// zone 0.
+    private static func strengthWorkout(start: Date, generator: inout Generator) -> WorkoutSummary {
+        let minutes = 58.0
+        let resting = 52.0, maximum = 185.0
+        var series: [TimelinePoint] = []
+        for minute in 0..<Int(minutes) {
+            // Roughly a set every four minutes, with recovery in between.
+            let phase = Double(minute).truncatingRemainder(dividingBy: 4) / 4
+            let base = phase < 0.45 ? 132 + phase * 40 : 96 + (1 - phase) * 26
+            series.append(.init(date: start.addingTimeInterval(Double(minute) * 60),
+                                value: base + generator.next(-4, 4)))
+        }
+        let values = series.map(\.value)
+        var zones = [Double](repeating: 0, count: 5)
+        var below = 0.0
+        for value in values {
+            guard let zone = HeartRateZoneEngine.zone(heartRate: value, resting: resting, maximum: maximum) else { continue }
+            if zone == 0 { below += 1 } else { zones[zone - 1] += 1 }
+        }
+        return .init(start: start, end: start.addingTimeInterval(minutes * 60),
+                     activity: "strength", calories: 420, source: "Apple Watch de Diego",
+                     zoneMinutes: zones, belowZoneMinutes: below, heartRate: series,
+                     averageHeartRate: Statistics.mean(values), maximumHeartRate: values.max(),
+                     heartRateRecovery: 24 + generator.next(-5, 5),
                      restingHeartRate: resting, maximumHeartRateReference: maximum)
     }
 

@@ -10,6 +10,23 @@ struct WorkoutDetailView: View {
     let workout: WorkoutSummary
 
     private var zoneShare: [Double]? { WorkoutAnalysis.zoneShare(workout) }
+    private var tension: [MuscleTensionEngine.Share] {
+        guard let session = loggedSession else { return [] }
+        return MuscleTensionEngine.shares(sets: session.sets, catalogue: model.exercises)
+    }
+    private var totals: MuscleTensionEngine.Totals? {
+        loggedSession.map { MuscleTensionEngine.totals($0.sets) }
+    }
+    /// Lifting against cardiovascular work. Both sides are the components
+    /// strain is already built from, so this cannot disagree with it.
+    private var split: MuscleTensionEngine.Split? {
+        guard let session = loggedSession else { return nil }
+        let strength = session.sets.filter(\.completed).reduce(0.0) { total, set in
+            total + StrengthEngine.load(set, estimated1RM: StrengthHistoryEngine.best(exercise: set.exerciseID, in: model.sessions)
+                .flatMap { StrengthEngine.estimated1RM(weight: $0.weightKg, reps: $0.reps) })
+        }
+        return MuscleTensionEngine.split(strengthLoad: strength, cardiacLoad: load)
+    }
     private var focus: WorkoutAnalysis.Focus? { WorkoutAnalysis.focus(workout) }
     private var load: Double { WorkoutAnalysis.load(workout) }
     private var history: [WorkoutSummary] { model.history.flatMap(\.workouts) }
@@ -27,6 +44,7 @@ struct WorkoutDetailView: View {
         ScrollView {
             VStack(spacing: 18) {
                 headline
+                if split != nil || !tension.isEmpty { breakdownCard }
                 if workout.heartRate?.isEmpty == false { heartRateCard }
                 if zoneShare != nil { zonesCard }
                 if let focus { focusCard(focus) }
@@ -80,7 +98,58 @@ struct WorkoutDetailView: View {
                     figure(number(average), "averageHeartRate", unit: "bpm")
                 }
             }
+            if let totals, totals.sets > 0 {
+                Divider().overlay(AppColors.divider)
+                HStack(spacing: 0) {
+                    figure(number(totals.volume), "totalVolume", unit: "kg")
+                    figure("\(totals.repetitions)", "totalRepetitions")
+                    figure("\(totals.sets)", "series")
+                    figure("\(totals.exercises)", "exercises")
+                }
+            }
         }
+    }
+
+    /// What the session was made of: lifting against cardiovascular work, and
+    /// which muscles carried it.
+    private var breakdownCard: some View {
+        Card(spacing: 14) {
+            Label(L("workoutBreakdown"), systemImage: "chart.pie").font(AppTypography.cardTitle)
+            if let split {
+                HStack(alignment: .top, spacing: 0) {
+                    splitFigure(split.muscular, "muscularWork", AppColors.metric(.strain))
+                    Divider().frame(height: 34).overlay(AppColors.divider)
+                    splitFigure(split.cardio, "cardioWork", AppColors.metric(.stress))
+                }
+                GeometryReader { proxy in
+                    HStack(spacing: 2) {
+                        Capsule().fill(AppColors.metric(.strain))
+                            .frame(width: max(0, proxy.size.width * split.muscular / 100))
+                        Capsule().fill(AppColors.metric(.stress))
+                    }
+                }
+                .frame(height: 10)
+            }
+            if !tension.isEmpty {
+                Divider().overlay(AppColors.divider)
+                Text(L("muscleTension")).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                MuscleTensionChart(shares: tension)
+                Text(L("muscleTensionDetail")).font(.caption2).foregroundStyle(.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func splitFigure(_ percent: Double, _ title: String, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(number(percent) + "%").font(.title2.weight(.bold)).monospacedDigit()
+            HStack(spacing: 5) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                Text(L(title)).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.trailing, 10)
     }
 
     private func figure(_ value: String, _ title: String, unit: String? = nil) -> some View {
@@ -425,6 +494,60 @@ enum WorkoutStyle {
         case 3: .adaptive(light: 0xB08900, dark: 0xF5D65B)
         case 4: .adaptive(light: 0xBE5411, dark: 0xFF9E52)
         default: .adaptive(light: 0xB3261E, dark: 0xFF6B61)
+        }
+    }
+}
+
+/// The muscle split as a ring with its legend, which is how a training log
+/// shows where a session went.
+struct MuscleTensionChart: View {
+    let shares: [MuscleTensionEngine.Share]
+
+    /// Distinct hues around the wheel, ordered so neighbouring slices never
+    /// share a colour. Not the metric palette: these are categories, not
+    /// intensities, and reusing the accent would imply a meaning they lack.
+    static func colour(_ index: Int) -> Color {
+        let palette: [Color] = [
+            .adaptive(light: 0x2E76C7, dark: 0x6BA6EC),
+            .adaptive(light: 0x0E9C7F, dark: 0x27F6CC),
+            .adaptive(light: 0x8A3FB8, dark: 0xC98CF5),
+            .adaptive(light: 0xBE5411, dark: 0xFF9E52),
+            .adaptive(light: 0xB3261E, dark: 0xFF6B61),
+            .adaptive(light: 0x3F55B8, dark: 0x8FA5FF),
+            .adaptive(light: 0xB08900, dark: 0xF5D65B),
+            .adaptive(light: 0x00838F, dark: 0x4DD0E1),
+            .adaptive(light: 0xAD1457, dark: 0xF06292),
+            .adaptive(light: 0x5D6D7E, dark: 0x9AA3B5)
+        ]
+        return palette[index % palette.count]
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Chart(Array(shares.enumerated()), id: \.element.id) { index, share in
+                SectorMark(angle: .value("share", share.percent),
+                           innerRadius: .ratio(0.62),
+                           angularInset: 1)
+                    .foregroundStyle(Self.colour(index))
+                    .cornerRadius(2)
+            }
+            .frame(width: 112, height: 112)
+            .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(shares.prefix(8).enumerated()), id: \.element.id) { index, share in
+                    HStack(spacing: 7) {
+                        Circle().fill(Self.colour(index)).frame(width: 8, height: 8)
+                        Text(L("muscle." + share.muscle)).font(.caption).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(number(share.percent) + "%")
+                            .font(.caption.weight(.semibold)).monospacedDigit()
+                    }
+                }
+                if shares.count > 8 {
+                    Text("+\(shares.count - 8)").font(.caption2).foregroundStyle(.tertiary)
+                }
+            }
         }
     }
 }
