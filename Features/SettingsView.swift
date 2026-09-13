@@ -367,6 +367,23 @@ struct DiagnosticsView: View {
                 LabeledContent(L("lastSync"), value: model.preferences.lastSyncAt?.formatted(date: .abbreviated, time: .shortened) ?? "—")
                 LabeledContent(L("lastWatchSync"), value: model.connectivity.lastReceived?.formatted(date: .abbreviated, time: .shortened) ?? "—")
             }
+            // What went wrong is worth showing plainly: a denied permission and
+            // a transient read error look identical from the alert alone.
+            if model.lastSyncError != nil || !model.unreadableTypes.isEmpty {
+                Section(L("syncProblems")) {
+                    if let error = model.lastSyncError {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("lastSyncError")).font(.caption).foregroundStyle(.secondary)
+                            Text(error).font(.footnote).textSelection(.enabled)
+                        }
+                    }
+                    ForEach(model.unreadableTypes, id: \.self) { type in
+                        Label(type, systemImage: "exclamationmark.triangle").font(.footnote)
+                    }
+                    Button(L("reviewPermissions")) { Task { await model.connectHealth() } }
+                    Text(L("reviewPermissionsDetail")).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
             Section(L("latestSamples")) {
                 ForEach(model.currentSnapshot?.vitals ?? []) { vital in
                     LabeledContent(L(vital.id), value: vital.date.formatted(date: .abbreviated, time: .shortened))

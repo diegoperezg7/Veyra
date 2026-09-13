@@ -144,13 +144,19 @@ struct UserPreferences: Codable, Sendable {
     var imperial = false
     var alarm = AlarmConfiguration()
     var enabledCards = ["health", "stress", "energy", "activity", "journal"]
+    /// Signature of the HealthKit types this install has asked permission for.
+    /// When a new version reads a type that was never requested, its queries
+    /// fail with "authorization not determined" — which used to take the whole
+    /// sync down with them. Comparing this against the current catalogue is how
+    /// the app knows to ask again.
+    var authorizedCatalog: String?
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
         case onboarded, baseSleep, importDays, autoSyncMinutes, lastSyncAt, healthConnected
         case maximumHR, birthDate, biologicalSex, sleepSource, status, writeHealth, cycle, darkMode, language
-        case imperial, alarm, enabledCards
+        case imperial, alarm, enabledCards, authorizedCatalog
     }
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -175,6 +181,7 @@ struct UserPreferences: Codable, Sendable {
         language = value(.language, fallback.language)
         imperial = value(.imperial, fallback.imperial)
         alarm = value(.alarm, fallback.alarm)
+        authorizedCatalog = try? container.decodeIfPresent(String.self, forKey: .authorizedCatalog)
         // Nutrition cards existed in earlier versions and must not come back.
         enabledCards = value(.enabledCards, fallback.enabledCards).filter { fallback.enabledCards.contains($0) }
         if enabledCards.isEmpty { enabledCards = fallback.enabledCards }

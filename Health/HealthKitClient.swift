@@ -85,6 +85,19 @@ enum HealthCatalog {
             + [HKObjectType.workoutType() as HKSampleType]
             + categories.compactMap { HKObjectType.categoryType(forIdentifier: $0) as HKSampleType? })
     }
+    /// Identifies the set of types this build reads. Any change to the
+    /// catalogue changes the signature, which is what triggers a fresh
+    /// authorization request on an install that was set up by an older version.
+    static var signature: String {
+        // FNV-1a, not `hashValue`: Swift seeds its hashing per process, so a
+        // stored `hashValue` would differ on the next launch and ask for
+        // permission every single time.
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in readTypes.map(\.identifier).sorted().joined(separator: ",").utf8 {
+            hash = (hash ^ UInt64(byte)) &* 0x100000001b3
+        }
+        return String(hash, radix: 16)
+    }
     /// The value at which Apple itself calls sleeping breathing disturbances
     /// elevated. Read from HealthKit so Veyra can never disagree with the
     /// Health app about the same night.
@@ -98,6 +111,14 @@ enum HealthCatalog {
     }
 }
 struct HealthChanges: Sendable { var anchors: [String: Data]; var affected: Set<Date>; var deleted: Bool }
+
+/// Collects the types that refused to be read during one import, so a partial
+/// sync can report what it could not reach instead of failing silently.
+actor FailedTypes {
+    private var identifiers: Set<String> = []
+    func append(_ identifier: String) { identifiers.insert(identifier) }
+    var all: [String] { identifiers.sorted() }
+}
 enum HealthServiceError: Error { case unavailable, unsupported, writeNotAuthorized }
 actor HealthKitClient: HealthDataRepository {
     let store = HKHealthStore()
@@ -132,10 +153,17 @@ actor HealthKitClient: HealthDataRepository {
         let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: [])
         // The types are independent of each other, so reading them concurrently
         // turns a long serial walk over ~35 queries into a handful of rounds.
+        let failed = FailedTypes()
         var vitals: [Vital] = try await withThrowingTaskGroup(of: [Vital].self) { group in
             for definition in HealthCatalog.quantities {
                 guard let type = HKObjectType.quantityType(forIdentifier: definition.identifier) else { continue }
                 group.addTask { [self] in
+                    // One unreadable type must not take the whole import down.
+                    // A type the user never granted — which is what every type
+                    // added after the first setup is — fails here, and before
+                    // this the failure propagated out of the group and left the
+                    // app permanently unable to sync anything.
+                    do {
                     let unit = HealthCatalog.unit(for: definition)
                     if definition.cumulative {
                         let daily = try await cumulative(type: type, unit: unit, from: from, to: to)
@@ -150,6 +178,10 @@ actor HealthKitClient: HealthDataRepository {
                         guard value.isFinite else { return nil }
                         return .init(id: definition.key, value: value, unit: definition.displayUnit, date: sample.startDate)
                     }
+                    } catch {
+                        await failed.append(definition.identifier.rawValue)
+                        return []
+                    }
                 }
             }
             var all: [Vital] = []
@@ -158,15 +190,15 @@ actor HealthKitClient: HealthDataRepository {
         }
         var sleep: [SleepSegment] = []
         if let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            sleep = try await samples(type, predicate: predicate).compactMap { sample in
+            sleep = (try await samples(type, predicate: predicate)).compactMap { sample in
                 guard let sample = sample as? HKCategorySample, let stage = SleepStage(rawValue: sample.value) else { return nil }
                 return .init(id: sample.uuid, start: sample.startDate, end: sample.endDate, stage: stage, source: sample.sourceRevision.source.bundleIdentifier)
             }
         }
         // Irregular rhythm notifications arrive as events. Recorded as a vital
         // of value 1 so they land on the timeline with everything else.
-        if let type = HKObjectType.categoryType(forIdentifier: .irregularHeartRhythmEvent) {
-            let events = try await samples(type, predicate: predicate)
+        if let type = HKObjectType.categoryType(forIdentifier: .irregularHeartRhythmEvent),
+           let events = try? await samples(type, predicate: predicate) {
             vitals += events.map { .init(id: "irregularRhythm", value: 1, unit: "", date: $0.startDate) }
         }
         let heartRates = vitals.filter { $0.id == "hr" }.sorted { $0.date < $1.date }
@@ -191,7 +223,8 @@ actor HealthKitClient: HealthDataRepository {
             let calories = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned).flatMap { workout.statistics(for: $0)?.sumQuantity()?.doubleValue(for: .kilocalorie()) }
             return .init(id: workout.uuid, start: workout.startDate, end: workout.endDate, activity: Self.activityName(workout.workoutActivityType), calories: calories, distanceMeters: workout.totalDistance?.doubleValue(for: .meter()), source: workout.sourceRevision.source.name, zoneMinutes: zones)
         }
-        return .init(vitals: vitals.sorted { $0.date < $1.date }, sleep: sleep, workouts: workouts)
+        return .init(vitals: vitals.sorted { $0.date < $1.date }, sleep: sleep, workouts: workouts,
+                     unreadableTypes: await failed.all)
     }
     private func samples(_ type: HKSampleType, from: Date, to: Date) async throws -> [HKSample] {
         try await samples(type, predicate: HKQuery.predicateForSamples(withStart: from, end: to, options: []))
@@ -233,17 +266,21 @@ actor HealthKitClient: HealthDataRepository {
     func changes(anchors: [String: Data], since: Date) async throws -> HealthChanges {
         var result = HealthChanges(anchors: anchors, affected: [], deleted: false)
         for type in HealthCatalog.readTypes.compactMap({ $0 as? HKSampleType }).sorted(by: { $0.identifier < $1.identifier }) {
-            let anchor = try anchors[type.identifier].flatMap { try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: $0) }
-            var cursor = anchor
+            let anchor = try? anchors[type.identifier].flatMap { try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: $0) }
+            var cursor = anchor ?? nil
             var more = true
             while more {
-                let page = try await anchored(type: type, anchor: cursor, since: since)
+                // Same reasoning as the read above: an unauthorised type is
+                // skipped, not allowed to abort the whole change detection.
+                guard let page = try? await anchored(type: type, anchor: cursor, since: since) else { break }
                 for dates in page.dates { result.affected.insert(Calendar.current.startOfDay(for: dates.0)); result.affected.insert(Calendar.current.startOfDay(for: dates.1)) }
                 result.deleted = result.deleted || page.deleted
                 cursor = page.anchor
                 more = page.count == 1000
             }
-            if let cursor { result.anchors[type.identifier] = try NSKeyedArchiver.archivedData(withRootObject: cursor, requiringSecureCoding: true) }
+            if let cursor, let data = try? NSKeyedArchiver.archivedData(withRootObject: cursor, requiringSecureCoding: true) {
+                result.anchors[type.identifier] = data
+            }
         }
         return result
     }

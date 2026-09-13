@@ -138,7 +138,13 @@ public struct HealthBatch: Sendable {
     public var vitals: [Vital]
     public var sleep: [SleepSegment]
     public var workouts: [WorkoutSummary]
-    public init(vitals: [Vital] = [], sleep: [SleepSegment] = [], workouts: [WorkoutSummary] = []) { self.vitals = vitals; self.sleep = sleep; self.workouts = workouts }
+    /// Types the source could not read on this pass — normally because the
+    /// user has not granted them. The import continues without them and says
+    /// so, rather than failing outright.
+    public var unreadableTypes: [String]
+    public init(vitals: [Vital] = [], sleep: [SleepSegment] = [], workouts: [WorkoutSummary] = [], unreadableTypes: [String] = []) {
+        self.vitals = vitals; self.sleep = sleep; self.workouts = workouts; self.unreadableTypes = unreadableTypes
+    }
 }
 public protocol HealthDataRepository: Sendable {
     /// `maximumHR` is required because heart-rate zones are personal; deriving

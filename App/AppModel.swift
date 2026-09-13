@@ -27,6 +27,10 @@ import PulseCore
     /// disappears rather than just vanishing.
     var syncCompletedAt: Date?
     var errorMessage: String?
+    /// Kept for Diagnostics: the reason the last sync failed, verbatim.
+    var lastSyncError: String?
+    /// Types the last import could not read, for the same reason.
+    var unreadableTypes: [String] = []
     var route: String?
     var tab = "home"
     var exercises: [ExerciseDefinition] = []
@@ -85,6 +89,7 @@ import PulseCore
         do {
             try await health.authorize(cycle: preferences.cycle, writing: preferences.writeHealth)
             preferences.healthConnected = true; preferences.onboarded = true
+            preferences.authorizedCatalog = HealthCatalog.signature
             await importCharacteristics()
             savePreferences()
             await sync(force: history.isEmpty)
@@ -123,6 +128,16 @@ import PulseCore
         let calendar = Calendar.current
         let start = calendar.date(byAdding: .day, value: -(override ?? preferences.importDays), to: calendar.startOfDay(for: Date())) ?? Date()
         do {
+            // A version that reads types the user was never asked about cannot
+            // read them at all — HealthKit refuses an undetermined type — so ask
+            // before importing whenever the catalogue has changed since the last
+            // time permission was granted. iOS only shows the sheet for what is
+            // genuinely new.
+            if preferences.healthConnected, preferences.authorizedCatalog != HealthCatalog.signature {
+                try await health.authorize(cycle: preferences.cycle, writing: preferences.writeHealth)
+                preferences.authorizedCatalog = HealthCatalog.signature
+                try store.save(preferences, key: "preferences", kind: "preferences")
+            }
             let changes = try await health.changes(anchors: force ? [:] : anchors, since: start)
             progress = 0.05
             var from = start
@@ -146,6 +161,7 @@ import PulseCore
                 syncPhase = "syncReading"
                 syncDetail = "\(min(offset + chunk.count, days.count))/\(days.count)"
                 let batch = try await health.read(from: readFrom, to: readTo, maximumHR: preferences.maximumHR)
+                unreadableTypes = batch.unreadableTypes
                 let movement = (try? await health.movement(from: readFrom, to: readTo)) ?? [:]
                 progress = fraction(offset: offset, chunk: chunk.count, total: days.count, within: 0.6)
 
@@ -181,10 +197,16 @@ import PulseCore
             await importCharacteristics()
             recalibrateWellnessAge()
             publish()
+            lastSyncError = nil
             progress = 1
             syncCompletedAt = Date()
         } catch is CancellationError { errorMessage = L("syncCancelled") }
-        catch { errorMessage = L("syncError") }
+        catch {
+            // Naming the failure matters: "it did not finish" gave no way to
+            // tell a denied permission from a transient read error.
+            lastSyncError = error.localizedDescription
+            errorMessage = L("syncError") + "\n\n" + error.localizedDescription
+        }
     }
     /// Maps chunk progress into the slice of the bar reserved for the work,
     /// leaving room at both ends for change detection and publication.
