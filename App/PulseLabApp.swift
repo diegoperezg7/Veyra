@@ -42,6 +42,9 @@ struct RootView: View {
         .fullScreenCover(isPresented: Binding(get: { !model.preferences.onboarded }, set: { _ in })) { OnboardingView() }
         .alert(L("attention"), isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) { Button(L("ok")) { model.errorMessage = nil } } message: { Text(model.errorMessage ?? "") }
         .onOpenURL { model.handleURL($0) }
+        // The launch window covers every screen but the long Trends ranges;
+        // the rest is read once there is something on screen to look at.
+        .task { await model.loadRemainingHistory() }
         .overlay(alignment: .top) { SyncPill().zIndex(10) }
         .task(id: "\(phase)-\(model.preferences.autoSyncMinutes)") {
             guard phase == .active, model.preferences.onboarded, model.preferences.healthConnected, !ProcessInfo.processInfo.arguments.contains("--uitesting") else { return }

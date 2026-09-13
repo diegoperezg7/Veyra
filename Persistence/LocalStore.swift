@@ -62,8 +62,19 @@ typealias StoredRecord = PulseSchema.StoredRecord
         else { context.insert(StoredRecord(key: key, kind: kind, date: date, payload: payload)) }
         try context.save()
     }
-    func load<T: Decodable>(_ type: T.Type, kind: String) throws -> [T] {
-        let descriptor = FetchDescriptor<StoredRecord>(predicate: #Predicate { $0.kind == kind }, sortBy: [SortDescriptor(\.date)])
+    /// - Parameters:
+    ///   - newest: when set, only the most recent N records are read. A year of
+    ///     daily snapshots is about 10 MB of JSON, and decoding all of it before
+    ///     the first frame is the single slowest thing the app does at launch.
+    ///   - before: reads the records older than this date, for loading the rest
+    ///     afterwards without re-reading what is already in memory.
+    func load<T: Decodable>(_ type: T.Type, kind: String, newest: Int? = nil, before: Date? = nil) throws -> [T] {
+        var descriptor = FetchDescriptor<StoredRecord>(
+            predicate: before.map { cutoff in #Predicate { $0.kind == kind && $0.date < cutoff } }
+                ?? #Predicate { $0.kind == kind },
+            // Newest first when limiting, so the limit keeps the recent days.
+            sortBy: [SortDescriptor(\.date, order: newest == nil ? .forward : .reverse)])
+        if let newest { descriptor.fetchLimit = newest }
         let records = try context.fetch(descriptor)
         let decoder = JSONDecoder()
         var values: [T] = []
@@ -85,7 +96,11 @@ typealias StoredRecord = PulseSchema.StoredRecord
         if removedCorruptRecord {
             try? context.save()
         }
-        return values
+        return newest == nil ? values : values.reversed()
+    }
+    /// How many records of a kind exist, without decoding any of them.
+    func count(kind: String) throws -> Int {
+        try context.fetchCount(FetchDescriptor<StoredRecord>(predicate: #Predicate { $0.kind == kind }))
     }
     func remove(key: String) throws {
         try context.delete(model: StoredRecord.self, where: #Predicate { $0.key == key }); try context.save()

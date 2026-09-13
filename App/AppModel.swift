@@ -7,7 +7,13 @@ import PulseCore
 
 @Observable @MainActor final class AppModel {
     var preferences = UserPreferences()
-    var history: [DailySnapshot] = []
+    var history: [DailySnapshot] = [] { didSet { indexVitals() } }
+    /// The most recent sample of each vital, and each vital's whole series,
+    /// built once per history change. Screens used to search the entire history
+    /// per lookup — Biology alone did it eighteen times per redraw, walking
+    /// thousands of samples each time.
+    private(set) var vitalSeries: [String: [Vital]] = [:]
+    var latestVitals: [String: Vital] { vitalSeries.compactMapValues(\.last) }
     var entries: [LogEntry] = []
     var templates: [WorkoutTemplate] = []
     var sessions: [StrengthSession] = []
@@ -44,7 +50,11 @@ import PulseCore
     var healthReturnedNothing = false
     var route: String?
     var tab = "home"
+    /// Loaded on first use rather than at launch. See `loadExercises()`.
     var exercises: [ExerciseDefinition] = []
+    /// False while the older part of the history is still being read.
+    var historyComplete = true
+    private var loadingHistory = false
     let store: LocalStore
     let health = HealthKitClient()
     let connectivity = Connectivity()
@@ -61,7 +71,12 @@ import PulseCore
     init(store: LocalStore) throws {
         self.store = store
         preferences = try store.load(UserPreferences.self, kind: "preferences").first ?? UserPreferences()
-        history = try store.load(DailySnapshot.self, kind: "daily")
+        // Only the recent window before the first frame. A year of snapshots is
+        // ~10 MB of JSON and decoding all of it is the slowest thing at launch;
+        // 90 days covers every screen except the long Trends ranges, and the
+        // rest is read straight afterwards off the main thread.
+        history = try store.load(DailySnapshot.self, kind: "daily", newest: Self.launchWindow)
+        historyComplete = (try? store.count(kind: "daily")) ?? 0 <= history.count
         // Migrate existing installations that already had imported HealthKit data.
         if !preferences.healthConnected && !history.isEmpty { preferences.healthConnected = true }
         entries = try store.load(LogEntry.self, kind: "entry")
@@ -70,7 +85,9 @@ import PulseCore
         documents = try store.load(HealthDocument.self, kind: "document")
         anchors = try store.load([String: Data].self, kind: "anchors").first ?? [:]
         wellnessAges = try store.load(WellnessAgeEstimate.self, kind: "wellnessAge").sorted { $0.date < $1.date }
-        if let url = Bundle.main.url(forResource: "exercises", withExtension: "json") { exercises = try JSONDecoder().decode([ExerciseDefinition].self, from: Data(contentsOf: url)) }
+        // The exercise catalogue is only needed once a training screen opens.
+        // Decoding 268 entries with their instructions at launch costs time
+        // nobody has asked for yet.
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--uitesting") {
             preferences.onboarded = true
@@ -92,6 +109,44 @@ import PulseCore
             }
         }
     }
+    /// Days of history read before the first frame.
+    static let launchWindow = 90
+
+    private func indexVitals() {
+        var index: [String: [Vital]] = [:]
+        for snapshot in history {
+            for vital in snapshot.vitals { index[vital.id, default: []].append(vital) }
+        }
+        for key in index.keys { index[key]?.sort { $0.date < $1.date } }
+        vitalSeries = index
+    }
+    /// The latest recorded sample of a vital, or nil when there is none.
+    func latestVital(_ key: String) -> Vital? { vitalSeries[key]?.last }
+
+    /// Reads the exercise catalogue the first time a training screen needs it.
+    /// Decoding happens off the main thread; the result is published back on it.
+    func loadExercises() async {
+        guard exercises.isEmpty,
+              let url = Bundle.main.url(forResource: "exercises", withExtension: "json") else { return }
+        let decoded = await Task.detached(priority: .userInitiated) { () -> [ExerciseDefinition] in
+            (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode([ExerciseDefinition].self, from: $0) } ?? []
+        }.value
+        if exercises.isEmpty { exercises = decoded }
+    }
+
+    /// Reads whatever history the launch window left behind. Called once the
+    /// app is on screen, so the wait is never in front of the user.
+    func loadRemainingHistory() async {
+        guard !historyComplete, !loadingHistory else { return }
+        loadingHistory = true
+        defer { loadingHistory = false }
+        let oldest = history.map(\.date).min() ?? Date()
+        let older = (try? store.load(DailySnapshot.self, kind: "daily", before: oldest)) ?? []
+        guard !older.isEmpty else { historyComplete = true; return }
+        history = (older + history).sorted { $0.date < $1.date }
+        historyComplete = true
+    }
+
     func savePreferences() {
         perform { try store.save(preferences, key: "preferences", kind: "preferences") }
         publish()
@@ -132,6 +187,21 @@ import PulseCore
         if changed { savePreferences() }
         return changed ? .updated : .alreadyCurrent
     }
+    /// Shortest gap between two syncs triggered by HealthKit observations.
+    /// Several types can report within seconds of each other — a workout ends
+    /// and heart rate, energy and the workout itself all fire — and each one
+    /// used to start its own full import.
+    static let observerSyncInterval: TimeInterval = 600
+    private var lastObserverSync: Date?
+
+    func syncFromObserver() async {
+        if let last = lastObserverSync, Date().timeIntervalSince(last) < Self.observerSyncInterval { return }
+        lastObserverSync = Date()
+        // Observations are about what just happened, so only recent days are
+        // recalculated rather than the whole import window.
+        await sync(days: 3)
+    }
+
     func sync(force: Bool = false, days override: Int? = nil) async {
         guard !syncing else { return }
         syncing = true; progress = 0; syncPhase = "syncDetecting"; syncDetail = nil
@@ -252,9 +322,16 @@ import PulseCore
     /// Types whose arrival should refresh the day. Workouts and heart rate are
     /// requested immediately because they change what the user sees right now;
     /// the rest are hourly, which is all HealthKit grants for most types.
+    /// Exposed for the performance guard test.
+    static var observedTypesForTesting: [(HKSampleType, HKUpdateFrequency)] { observedTypes }
     private static let observedTypes: [(HKSampleType, HKUpdateFrequency)] = {
         let quantities: [(HKQuantityTypeIdentifier, HKUpdateFrequency)] = [
-            (.heartRate, .immediate), (.heartRateVariabilitySDNN, .hourly), (.restingHeartRate, .hourly),
+            // Hourly, not immediate: the watch records heart rate every few
+            // minutes, and waking the app for each sample ran a full import
+            // dozens of times a day. Nothing Veyra shows is finer than a
+            // fifteen-minute bin, so there is nothing to gain from it and a
+            // warm phone to lose.
+            (.heartRate, .hourly), (.heartRateVariabilitySDNN, .hourly), (.restingHeartRate, .hourly),
             (.activeEnergyBurned, .hourly), (.stepCount, .hourly), (.respiratoryRate, .hourly),
             (.oxygenSaturation, .hourly), (.appleSleepingWristTemperature, .hourly)
         ]
@@ -274,7 +351,7 @@ import PulseCore
                 // acknowledged here and the sync runs after. A sync that fails
                 // is retried by the next observation or the periodic timer.
                 completion()
-                Task { @MainActor [weak self] in await self?.sync() }
+                Task { @MainActor [weak self] in await self?.syncFromObserver() }
             }
             observers.append(query); observerStore.execute(query)
             observerStore.enableBackgroundDelivery(for: type, frequency: frequency) { _, _ in }

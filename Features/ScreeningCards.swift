@@ -48,10 +48,9 @@ enum ScreeningSignals {
         #endif
     }
 
-    static func build(history: [DailySnapshot], birthDate: Date?, sex: String?, now: Date = Date()) -> [ScreeningSignal] {
+    static func build(history: [DailySnapshot], vitals: [String: [Vital]], birthDate: Date?, sex: String?, now: Date = Date()) -> [ScreeningSignal] {
         var signals: [ScreeningSignal] = []
-        let vitals = history.flatMap(\.vitals)
-        func series(_ key: String) -> [Vital] { vitals.filter { $0.id == key }.sorted { $0.date < $1.date } }
+        func series(_ key: String) -> [Vital] { vitals[key] ?? [] }
 
         // Wrist temperature, as a deviation from the wearer's own nights.
         let temperature = series("temperature")

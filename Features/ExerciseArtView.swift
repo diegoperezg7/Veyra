@@ -11,15 +11,24 @@ import PulseCore
 @MainActor
 enum ExerciseArt {
     // Drawing happens on the main actor, so the cache lives there too rather
-    // than needing a lock of its own.
-    private static let cache = NSCache<NSString, UIImage>()
+    // than needing a lock of its own. Bounded: scrolling the whole library
+    // would otherwise hold 537 decoded bitmaps at once, and the system only
+    // evicts an unbounded NSCache under memory pressure — which is exactly the
+    // moment when doing the work again is most expensive.
+    private static let cache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 80
+        cache.totalCostLimit = 24 * 1024 * 1024
+        return cache
+    }()
 
     static func image(_ name: String) -> UIImage? {
         if let cached = cache.object(forKey: name as NSString) { return cached }
         guard let url = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "ExerciseArt"),
               let image = UIImage(contentsOfFile: url.path)?.withRenderingMode(.alwaysTemplate)
         else { return nil }
-        cache.setObject(image, forKey: name as NSString)
+        let cost = Int(image.size.width * image.size.height * image.scale * image.scale)
+        cache.setObject(image, forKey: name as NSString, cost: cost)
         return image
     }
 }

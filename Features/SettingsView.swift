@@ -111,7 +111,7 @@ struct ProfileSettingsView: View {
     /// The most recent sample Health has for a measurement. Weight and height
     /// are readings, not settings: they are changed on the scale, not here.
     private func latest(_ key: String) -> Vital? {
-        model.history.flatMap(\.vitals).last { $0.id == key }
+        model.latestVital(key)
     }
 
     var body: some View {

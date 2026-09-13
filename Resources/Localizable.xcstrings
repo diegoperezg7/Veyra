@@ -3,6 +3,7 @@
   "strings": {
     "": {},
     "%": {},
+    "%lld": {},
     "%lld min": {},
     "%lld × %@ kg": {
       "localizations": {
@@ -26,6 +27,7 @@
     },
     "%lldD": {},
     "/100": {},
+    "0": {},
     "1.0.0": {},
     "1Y": {},
     "30D": {},
@@ -5878,13 +5880,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Original instructions from Everkinetic (CC BY-SA 4.0)."
+            "value": "Instructions adapted from Everkinetic (CC BY-SA 4.0)."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Instrucciones originales de Everkinetic (CC BY-SA 4.0), en inglés."
+            "value": "Instrucciones adaptadas de Everkinetic (CC BY-SA 4.0)."
           }
         }
       }
@@ -12980,6 +12982,40 @@
         }
       }
     },
+    "weeklyVolume": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This week's volume"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volumen de la semana"
+          }
+        }
+      }
+    },
+    "weeklyVolumeDetail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilograms moved in the last 7 days, by muscle group. Only ticked sets count."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilos movidos en los últimos 7 días, por grupo muscular. Solo cuentan las series marcadas."
+          }
+        }
+      }
+    },
     "weighInReminder": {
       "extractionState": "manual",
       "localizations": {
@@ -13592,8 +13628,7 @@
           }
         }
       }
-    },
-    "—": {}
+    }
   },
   "version": "1.0"
 }

@@ -388,21 +388,73 @@ struct FlowRow: Layout {
     }
 }
 
+/// A starting plan: a few days a week, one compound movement per pattern.
+/// Deliberately plain — it exists to give someone a first routine to edit, not
+/// to prescribe training.
 struct TrainingPlanView: View {
     @Environment(AppModel.self) private var model
     @State private var days = 3
     @State private var goal = "generalFitness"
     @State private var saved = false
-    var body: some View { Form { Section { Picker(L("goal"), selection: $goal) { ForEach(["generalFitness", "strength", "endurance"], id: \.self) { Text(L($0)).tag($0) } }; Stepper(L("daysPerWeek") + ": \(days)", value: $days, in: 2...5); Text(L("planDetail")).font(.footnote).foregroundStyle(.secondary) }
-        ForEach(0..<days, id: \.self) { index in Section(L("day") + " \(index + 1)") { ForEach(selectedExercises(index)) { exercise in Text(exercise.name); Text("3 × 8–12 · " + L("chooseWeight")).font(.caption).foregroundStyle(.secondary) } } }
-        Button(L("savePlan")) { for index in 0..<days { let sets = selectedExercises(index).flatMap { exercise in (0..<3).map { _ in StrengthSet(exerciseID: exercise.id, reps: goal == "strength" ? 8 : 12) } }; model.saveTemplate(.init(name: L(goal) + " · " + L("day") + " \(index + 1)", sets: sets)) }; saved = true }.disabled(saved)
-        if saved { Label(L("planSaved"), systemImage: "checkmark") }
-    }.navigationTitle(L("trainingPlan")) }
-    private func selectedExercises(_ day: Int) -> [ExerciseDefinition] {
-        let patterns = ["squat", "hinge", "push", "pull", "core"]
-        return patterns.compactMap { pattern in
-            let options = model.exercises.filter { $0.movementPattern == pattern && $0.compound }
-            return options.isEmpty ? nil : options[min(day, options.count - 1)]
+
+    private let patterns = ["squat", "hinge", "push", "pull", "core"]
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                Card(spacing: 12) {
+                    Label(L("trainingPlan"), systemImage: "calendar.badge.plus").font(AppTypography.cardTitle)
+                    Picker(L("goal"), selection: $goal) {
+                        ForEach(["generalFitness", "strength", "endurance"], id: \.self) { Text(L($0)).tag($0) }
+                    }.pickerStyle(.segmented)
+                    Stepper(L("daysPerWeek") + ": \(days)", value: $days, in: 2...5).font(.subheadline)
+                    Text(L("planDetail")).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(0..<days, id: \.self) { index in
+                    Card(spacing: 12) {
+                        Text(L("day") + " \(index + 1)").font(AppTypography.cardTitle)
+                        ForEach(exercises(index)) { exercise in
+                            HStack(spacing: 12) {
+                                ExerciseThumbnail(exercise: exercise, size: 44)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(exercise.name).font(.subheadline.weight(.medium)).lineLimit(2)
+                                    Text("3 × \(goal == "strength" ? "8" : "12") · " + L("chooseWeight"))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+                PrimaryButton(title: saved ? "planSaved" : "savePlan") {
+                    for index in 0..<days {
+                        let sets = exercises(index).flatMap { exercise in
+                            (0..<3).map { _ in StrengthSet(exerciseID: exercise.id, reps: goal == "strength" ? 8 : 12) }
+                        }
+                        model.saveTemplate(.init(name: L(goal) + " · " + L("day") + " \(index + 1)", sets: sets))
+                    }
+                    saved = true
+                }
+                .disabled(saved)
+            }
+            .padding(.horizontal, 18).padding(.bottom, 28)
+        }
+        .pulsePage()
+        .navigationTitle(L("trainingPlan"))
+        .task { await model.loadExercises() }
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// One compound movement per pattern, rotated by day so the week is not the
+    /// same session three times.
+    private func exercises(_ day: Int) -> [ExerciseDefinition] {
+        patterns.compactMap { pattern in
+            let options = model.exercises
+                .filter { $0.movementPattern == pattern && $0.compound && !$0.unilateral }
+                .sorted { $0.id < $1.id }
+            guard !options.isEmpty else { return nil }
+            return options[day % options.count]
         }
     }
 }

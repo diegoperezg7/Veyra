@@ -14,11 +14,11 @@ struct BiologyView: View {
         Button { model.route = "documents" } label: { Card { SectionTitle(title: "healthRecords", symbol: "doc.text"); Text(L("healthRecordsDetail")).font(.subheadline).foregroundStyle(.secondary); Text("\(model.documents.count) " + L("documents")).font(.caption) } }.buttonStyle(.plain)
         Button { model.route = "cycle" } label: { Card { SectionTitle(title: "cycle", symbol: "circle.dotted"); Text(L(model.preferences.cycle ? "cycleEnabled" : "cycleOptional")).font(.subheadline).foregroundStyle(.secondary) } }.buttonStyle(.plain)
     }.padding(.horizontal, 18).padding(.top, 6).padding(.bottom, 24) }.pulsePage().navigationTitle(L("biology")).navigationBarTitleDisplayMode(.inline) }
-    private func latest(_ key: String) -> Vital? { model.history.flatMap(\.vitals).last { $0.id == key } }
+    private func latest(_ key: String) -> Vital? { model.latestVital(key) }
     /// Readings that carry a published reference band. Built from whatever the
     /// history holds, so the card only appears once something can be said.
     private var screening: [ScreeningSignal] {
-        ScreeningSignals.build(history: model.history, birthDate: model.preferences.birthDate, sex: model.preferences.biologicalSex)
+        ScreeningSignals.build(history: model.history, vitals: model.vitalSeries, birthDate: model.preferences.birthDate, sex: model.preferences.biologicalSex)
     }
     private func vitalSymbol(_ key: String) -> String { switch key { case "hrv", "rhr": "heart"; case "respiratory", "oxygen": "lungs"; case "temperature": "thermometer.medium"; default: "waveform.path" } }
 }
@@ -123,7 +123,7 @@ struct VitalDetailView: View {
     var key: String
     @State private var range = 30
     var body: some View {
-        let values = model.history.flatMap(\.vitals).filter { $0.id == key }
+        let values = model.vitalSeries[key] ?? []
         let points = values.suffix(range)
         let spread = (points.map(\.value).max() ?? 1) - (points.map(\.value).min() ?? 0)
         let padding = max(abs(spread) * 0.25, max(abs(points.last?.value ?? 1) * 0.04, 0.5))

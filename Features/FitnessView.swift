@@ -30,7 +30,7 @@ struct FitnessView: View {
         model.history.flatMap(\.workouts).sorted { $0.start > $1.start }
     }
 
-    private var vo2: Double? { model.history.flatMap(\.vitals).last { $0.id == "vo2" }?.value }
+    private var vo2: Double? { model.latestVital("vo2")?.value }
     /// Percentile against adults of the same age and sex; nil when either is
     /// unknown, since the comparison has no meaning without them.
     private var vo2Percentile: Double? {

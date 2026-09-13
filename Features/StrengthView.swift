@@ -23,6 +23,7 @@ struct StrengthView: View {
                 } else {
                     startCard
                 }
+                if !weeklyVolume.isEmpty { volumeCard }
                 if !finished.isEmpty { repeatCard }
                 if !model.templates.isEmpty { routinesCard }
                 toolsCard
@@ -32,6 +33,7 @@ struct StrengthView: View {
         }
         .pulsePage()
         .navigationTitle(L("strength"))
+        .task { await model.loadExercises() }
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $creating) { NavigationStack { RoutineEditor(template: nil) } }
         .sheet(item: $editingRoutine) { template in NavigationStack { RoutineEditor(template: template) } }
@@ -69,6 +71,40 @@ struct StrengthView: View {
             PrimaryButton(title: "startEmptyWorkout") {
                 model.startSession(name: L("strengthSession"))
             }
+        }
+    }
+
+    /// Completed volume per muscle group over the trailing week. A set counts
+    /// for its primary group only; splitting it across secondary ones would
+    /// imply a precision the catalogue does not have.
+    private var weeklyVolume: [(String, Double)] {
+        let end = Date()
+        let totals = StrengthHistoryEngine.volumeByGroup(
+            sessions: model.sessions, catalogue: model.exercises,
+            from: end.addingTimeInterval(-7 * 86400), to: end)
+        return totals.filter { $0.value > 0 }.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
+    }
+
+    private var volumeCard: some View {
+        Card(spacing: 12) {
+            Label(L("weeklyVolume"), systemImage: "chart.bar.fill").font(AppTypography.cardTitle)
+            let peak = weeklyVolume.first?.1 ?? 1
+            ForEach(weeklyVolume, id: \.0) { group, volume in
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        Label(L("group." + group), systemImage: ExerciseVocabulary.groupSymbol(group))
+                            .font(.caption.weight(.medium))
+                        Spacer()
+                        Text(number(volume) + " kg").font(.caption.weight(.semibold)).monospacedDigit()
+                    }
+                    GeometryReader { proxy in
+                        Capsule().fill(AppColors.accentVivid)
+                            .frame(width: max(3, proxy.size.width * volume / peak))
+                    }
+                    .frame(height: 6)
+                }
+            }
+            Text(L("weeklyVolumeDetail")).font(.caption2).foregroundStyle(.tertiary)
         }
     }
 
@@ -212,6 +248,7 @@ struct ActiveStrengthView: View {
             }
         }
         .navigationTitle(session?.name ?? L("strength"))
+        .task { await model.loadExercises() }
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { if session == nil { session = model.activeSession } }
         .sheet(isPresented: $pickingExercise) {
@@ -551,6 +588,7 @@ struct ExerciseLibraryView: View {
         .pulsePage()
         .searchable(text: $search, prompt: L("searchExercise"))
         .navigationTitle(L("exerciseLibrary"))
+        .task { await model.loadExercises() }
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -702,6 +740,7 @@ struct ExerciseDetailView: View {
         .pulsePage()
         .navigationTitle(exercise.name)
         .navigationBarTitleDisplayMode(.inline)
+        .task { await model.loadExercises() }
     }
 
     private func muscleRow(_ title: String, _ muscles: [String], tint: Color) -> some View {
@@ -804,6 +843,7 @@ struct RoutineEditor: View {
         }
         .pulsePage()
         .navigationTitle(L(template == nil ? "createRoutine" : "editRoutine"))
+        .task { await model.loadExercises() }
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             guard !loaded, let template else { loaded = true; return }
@@ -876,6 +916,7 @@ struct SessionHistoryView: View {
         }
         .pulsePage()
         .navigationTitle(L("history"))
+        .task { await model.loadExercises() }
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -912,6 +953,7 @@ struct SessionDetail: View {
         .pulsePage()
         .navigationTitle(session.name)
         .navigationBarTitleDisplayMode(.inline)
+        .task { await model.loadExercises() }
     }
 }
 

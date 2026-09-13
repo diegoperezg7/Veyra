@@ -14,8 +14,9 @@ requires, and are therefore **excluded from the "All Rights Reserved" terms that
 cover the rest of this repository**. Anyone may reuse them under the same
 licence with attribution to Everkinetic.
 
-The exercise names, muscle groups, equipment classification and Spanish
-translations in `Resources/exercises.json` are derived from the same dataset and
-carry the same licence.
+The exercise names, muscle groups, equipment classification and the Spanish
+translations of the names and instructions in `Resources/exercises.json` are
+derived from the same dataset and carry the same licence. The sentence-level
+translation table lives in `Resources/steps_es.json`.
 
 Nothing else in Veyra is CC BY-SA.

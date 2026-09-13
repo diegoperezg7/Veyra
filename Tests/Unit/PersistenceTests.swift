@@ -16,8 +16,12 @@ import PulseCore
         XCTAssertTrue(try store.load(LogEntry.self, kind: "entry").isEmpty)
     }
 
-    func testCatalogIsUniqueAndComplete() throws {
+    /// The catalogue is loaded on demand now, not at launch, so the test has to
+    /// ask for it the same way a training screen does.
+    func testCatalogIsUniqueAndComplete() async throws {
         let model = try AppModel(store: LocalStore(inMemory: true))
+        XCTAssertTrue(model.exercises.isEmpty, "el catálogo no debe cargarse en el arranque")
+        await model.loadExercises()
         XCTAssertGreaterThanOrEqual(model.exercises.count, 250)
         XCTAssertEqual(Set(model.exercises.map(\.id)).count, model.exercises.count)
         XCTAssertEqual(Set(model.exercises.map(\.name)).count, model.exercises.count)
