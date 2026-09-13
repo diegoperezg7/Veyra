@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>local.pulselab.refresh</string>
+	</array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>local.pulselab</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pulselab</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Veyra se conecta al sensor de frecuencia cardíaca que selecciones durante tus entrenamientos.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Veyra utiliza tus datos de Salud para calcular sueño, recuperación, actividad y tendencias personales.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Veyra guarda en Salud los entrenamientos que eliges registrar.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Veyra utiliza el movimiento durante sesiones compatibles.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>PulseAppGroup</key>
+	<string>group.local.pulselab</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>UILaunchScreen</key>
+	<dict/>
+</dict>
+</plist>
