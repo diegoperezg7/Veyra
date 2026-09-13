@@ -282,19 +282,42 @@ actor HealthKitClient: HealthDataRepository {
         let restingByDay = Dictionary(vitals.filter { $0.id == "rhr" }.map { (Calendar.current.startOfDay(for: $0.date), $0.value) }, uniquingKeysWith: { _, b in b })
         let restingFallback = Statistics.median(vitals.filter { $0.id == "rhr" }.map(\.value))
         let maximum = Statistics.clamp(maximumHR, 100, 240)
+        // Heart-rate recovery the watch measured, matched to the workout it
+        // followed: HealthKit records it as a sample shortly after the effort.
+        let recoveries = vitals.filter { $0.id == "hrRecovery" }.sorted { $0.date < $1.date }
         let workouts = try await samples(HKObjectType.workoutType(), predicate: predicate).compactMap { sample -> WorkoutSummary? in
             guard let workout = sample as? HKWorkout else { return nil }
             var zones = [Double](repeating: 0, count: 5)
+            var belowZone = 0.0
             let points = heartRates.filter { $0.date >= workout.startDate && $0.date <= workout.endDate }
             let resting = restingByDay[Calendar.current.startOfDay(for: workout.startDate)] ?? restingFallback
             for (point, next) in zip(points, points.dropFirst()) {
                 let interval = next.date.timeIntervalSince(point.date)
                 guard interval > 0, interval <= 120, let resting,
-                      let zone = HeartRateZoneEngine.zone(heartRate: point.value, resting: resting, maximum: maximum), zone > 0 else { continue }
-                zones[zone - 1] += interval / 60
+                      let zone = HeartRateZoneEngine.zone(heartRate: point.value, resting: resting, maximum: maximum) else { continue }
+                // Zone 0 is counted too now: the detail screen shows how much
+                // of a session was warm-up and rest, which is most of many.
+                if zone == 0 { belowZone += interval / 60 } else { zones[zone - 1] += interval / 60 }
             }
             let calories = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned).flatMap { workout.statistics(for: $0)?.sumQuantity()?.doubleValue(for: .kilocalorie()) }
-            return .init(id: workout.uuid, start: workout.startDate, end: workout.endDate, activity: Self.activityName(workout.workoutActivityType), calories: calories, distanceMeters: workout.totalDistance?.doubleValue(for: .meter()), source: workout.sourceRevision.source.name, zoneMinutes: zones)
+            let values = points.map(\.value)
+            // A minute-by-minute series, small enough to store with the day.
+            let series = WorkoutAnalysis.subsample(points.map { .init(date: $0.date, value: $0.value) })
+            // The watch writes recovery within a few minutes of the end.
+            let recovery = recoveries.last {
+                $0.date >= workout.endDate && $0.date.timeIntervalSince(workout.endDate) < 600
+            }?.value
+            return .init(id: workout.uuid, start: workout.startDate, end: workout.endDate,
+                         activity: Self.activityName(workout.workoutActivityType), calories: calories,
+                         distanceMeters: workout.totalDistance?.doubleValue(for: .meter()),
+                         source: workout.sourceRevision.source.name, zoneMinutes: zones,
+                         belowZoneMinutes: belowZone,
+                         heartRate: series.isEmpty ? nil : series,
+                         averageHeartRate: Statistics.mean(values),
+                         maximumHeartRate: values.max(),
+                         heartRateRecovery: recovery,
+                         restingHeartRate: resting,
+                         maximumHeartRateReference: maximum)
         }
         return .init(vitals: vitals.sorted { $0.date < $1.date }, sleep: sleep, workouts: workouts,
                      unreadableTypes: await failed.all)

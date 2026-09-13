@@ -60,7 +60,10 @@ enum SampleData {
 
             let sleepScore = Statistics.clamp(62 + asleepMinutes / 12 - 20 + wave * 5 + state.next(-6, 6))
             let recovery = Statistics.clamp(sleepScore * 0.55 + 30 + wave * 7 + state.next(-7, 7))
-            let workouts = offset % 3 == 1 ? [workout(on: date, generator: &state)] : []
+            // Today always has one: it is the day the screens are showing, and
+            // an empty "today" makes the workout screens look broken in review
+            // builds and screenshots.
+            let workouts = (offset == 0 || offset % 3 == 1) ? [workout(on: date, generator: &state, now: now)] : []
             let strain = Statistics.clamp((workouts.isEmpty ? 26 : 58) + wave * 6 + state.next(-8, 8))
 
             let vitals: [Vital] = [
@@ -171,12 +174,45 @@ enum SampleData {
         return SleepSession(segments: segments)
     }
 
-    private static func workout(on date: Date, generator: inout Generator) -> WorkoutSummary {
-        let start = date.addingTimeInterval(18 * 3600 + generator.next(-3_000, 3_000))
+    private static func workout(on date: Date, generator: inout Generator, now: Date = Date()) -> WorkoutSummary {
         let minutes = 42 + generator.next(-10, 18)
+        var start = date.addingTimeInterval(18 * 3600 + generator.next(-3_000, 3_000))
+        // Never in the future: a session that has not happened yet would show
+        // up with a negative duration on the day it is generated.
+        if start.addingTimeInterval(minutes * 60) > now {
+            start = now.addingTimeInterval(-(minutes + 25) * 60)
+        }
+        let resting = 52.0, maximum = 185.0
+        // A plausible shape: warm-up, a steady middle with a couple of efforts,
+        // and a cool-down. Enough for the detail screen to have something to
+        // draw in review builds.
+        var series: [TimelinePoint] = []
+        for minute in 0..<Int(minutes) {
+            let progress = Double(minute) / minutes
+            let base: Double
+            switch progress {
+            case ..<0.12: base = 95 + progress / 0.12 * 40
+            case ..<0.75: base = 148 + sin(progress * 14) * 9
+            case ..<0.85: base = 168 + sin(progress * 20) * 6
+            default: base = 150 - (progress - 0.85) / 0.15 * 35
+            }
+            series.append(.init(date: start.addingTimeInterval(Double(minute) * 60),
+                                value: base + generator.next(-3, 3)))
+        }
+        let values = series.map(\.value)
+        var zones = [Double](repeating: 0, count: 5)
+        var below = 0.0
+        for value in values {
+            guard let zone = HeartRateZoneEngine.zone(heartRate: value, resting: resting, maximum: maximum) else { continue }
+            if zone == 0 { below += 1 } else { zones[zone - 1] += 1 }
+        }
         return .init(start: start, end: start.addingTimeInterval(minutes * 60),
                      activity: "running", calories: minutes * 11, distanceMeters: minutes * 170,
-                     source: "Apple Watch", zoneMinutes: [6, 12, minutes * 0.4, minutes * 0.2, 3])
+                     source: "Apple Watch de Diego", zoneMinutes: zones, belowZoneMinutes: below,
+                     heartRate: series,
+                     averageHeartRate: Statistics.mean(values), maximumHeartRate: values.max(),
+                     heartRateRecovery: 28 + generator.next(-6, 6),
+                     restingHeartRate: resting, maximumHeartRateReference: maximum)
     }
 
     private static func stressTimeline(on date: Date, session: SleepSession, workouts: [WorkoutSummary], generator: inout Generator) -> [TimelinePoint] {

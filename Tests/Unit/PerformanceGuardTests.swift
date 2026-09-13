@@ -103,3 +103,27 @@ import HealthKit
         XCTAssertEqual(model.history.map(\.date), model.history.map(\.date).sorted())
     }
 }
+
+/// The sample workouts feed the detail screen in review builds, so they have to
+/// carry everything that screen reads.
+@MainActor final class SampleWorkoutTests: XCTestCase {
+    func testSampleWorkoutsCarryHeartRateAndZones() {
+        let history = SampleData.history(days: 10)
+        let workouts = history.flatMap(\.workouts)
+        XCTAssertFalse(workouts.isEmpty)
+        for workout in workouts {
+            XCTAssertGreaterThan(workout.minutes, 0, "un entrenamiento no puede durar cero")
+            XCTAssertFalse(workout.heartRate?.isEmpty ?? true, "falta la serie de pulso")
+            XCTAssertNotNil(workout.averageHeartRate)
+            XCTAssertNotNil(WorkoutAnalysis.zoneShare(workout), "sin reparto por zonas")
+            XCTAssertNotNil(WorkoutAnalysis.focus(workout))
+            XCTAssertNotNil(workout.restingHeartRate)
+            XCTAssertNotNil(workout.maximumHeartRateReference)
+            // Never in the future, whatever time of day the sample is built.
+            XCTAssertLessThanOrEqual(workout.end, Date().addingTimeInterval(60))
+        }
+        // Today has one, because today is the day every screen opens on.
+        let today = history.first { Calendar.current.isDateInToday($0.date) }
+        XCTAssertFalse(today?.workouts.isEmpty ?? true, "el día de hoy debe traer entrenamiento")
+    }
+}

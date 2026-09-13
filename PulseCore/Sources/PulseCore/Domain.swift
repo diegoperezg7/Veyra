@@ -106,10 +106,59 @@ public struct WorkoutSummary: Codable, Sendable, Identifiable, Equatable {
     public var calories: Double?
     public var distanceMeters: Double?
     public var source: String
+    /// Minutes in zones 1 to 5. Zone 0 — below 50% of heart-rate reserve — is
+    /// kept separately so the existing load calculation is unaffected.
     public var zoneMinutes: [Double]
+    /// Everything below is optional so a workout recorded by an earlier version
+    /// still decodes. `LocalStore` deletes records it cannot read.
+    public var belowZoneMinutes: Double?
+    /// Heart rate through the session, subsampled to roughly one point a
+    /// minute: enough to draw the shape, small enough to store.
+    public var heartRate: [TimelinePoint]?
+    public var averageHeartRate: Double?
+    public var maximumHeartRate: Double?
+    /// The drop one minute after the effort ended, from HealthKit's own
+    /// measurement when the watch recorded one.
+    public var heartRateRecovery: Double?
+    /// The references the zones were computed against, so a chart can draw the
+    /// same bands the minutes were counted in.
+    public var restingHeartRate: Double?
+    public var maximumHeartRateReference: Double?
+
     public var minutes: Double { max(0, end.timeIntervalSince(start) / 60) }
-    public init(id: UUID = UUID(), start: Date, end: Date, activity: String, calories: Double? = nil, distanceMeters: Double? = nil, source: String = "", zoneMinutes: [Double] = []) {
+    /// Minutes the watch actually attributed to a zone, zone 0 included.
+    public var measuredMinutes: Double { zoneMinutes.reduce(0, +) + (belowZoneMinutes ?? 0) }
+
+    public init(id: UUID = UUID(), start: Date, end: Date, activity: String, calories: Double? = nil, distanceMeters: Double? = nil, source: String = "", zoneMinutes: [Double] = [], belowZoneMinutes: Double? = nil, heartRate: [TimelinePoint]? = nil, averageHeartRate: Double? = nil, maximumHeartRate: Double? = nil, heartRateRecovery: Double? = nil, restingHeartRate: Double? = nil, maximumHeartRateReference: Double? = nil) {
         self.id = id; self.start = start; self.end = end; self.activity = activity; self.calories = calories; self.distanceMeters = distanceMeters; self.source = source; self.zoneMinutes = zoneMinutes
+        self.belowZoneMinutes = belowZoneMinutes; self.heartRate = heartRate
+        self.averageHeartRate = averageHeartRate; self.maximumHeartRate = maximumHeartRate
+        self.heartRateRecovery = heartRateRecovery
+        self.restingHeartRate = restingHeartRate; self.maximumHeartRateReference = maximumHeartRateReference
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, start, end, activity, calories, distanceMeters, source, zoneMinutes
+        case belowZoneMinutes, heartRate, averageHeartRate, maximumHeartRate
+        case heartRateRecovery, restingHeartRate, maximumHeartRateReference
+    }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        start = try container.decode(Date.self, forKey: .start)
+        end = try container.decode(Date.self, forKey: .end)
+        activity = try container.decode(String.self, forKey: .activity)
+        source = (try? container.decodeIfPresent(String.self, forKey: .source)) .flatMap { $0 } ?? ""
+        zoneMinutes = (try? container.decodeIfPresent([Double].self, forKey: .zoneMinutes)).flatMap { $0 } ?? []
+        calories = try? container.decodeIfPresent(Double.self, forKey: .calories)
+        distanceMeters = try? container.decodeIfPresent(Double.self, forKey: .distanceMeters)
+        belowZoneMinutes = try? container.decodeIfPresent(Double.self, forKey: .belowZoneMinutes)
+        heartRate = try? container.decodeIfPresent([TimelinePoint].self, forKey: .heartRate)
+        averageHeartRate = try? container.decodeIfPresent(Double.self, forKey: .averageHeartRate)
+        maximumHeartRate = try? container.decodeIfPresent(Double.self, forKey: .maximumHeartRate)
+        heartRateRecovery = try? container.decodeIfPresent(Double.self, forKey: .heartRateRecovery)
+        restingHeartRate = try? container.decodeIfPresent(Double.self, forKey: .restingHeartRate)
+        maximumHeartRateReference = try? container.decodeIfPresent(Double.self, forKey: .maximumHeartRateReference)
     }
 }
 public struct DailySnapshot: Codable, Sendable, Identifiable, Equatable {

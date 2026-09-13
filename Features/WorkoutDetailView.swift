@@ -1,0 +1,430 @@
+import SwiftUI
+import Charts
+import PulseCore
+
+/// A single workout, in full. The previous version was four rows and a list of
+/// zone minutes; what a session actually raises are the questions answered
+/// here — how hard was it, where did the time go, and what did it cost.
+struct WorkoutDetailView: View {
+    @Environment(AppModel.self) private var model
+    let workout: WorkoutSummary
+
+    private var zoneShare: [Double]? { WorkoutAnalysis.zoneShare(workout) }
+    private var focus: WorkoutAnalysis.Focus? { WorkoutAnalysis.focus(workout) }
+    private var load: Double { WorkoutAnalysis.load(workout) }
+    private var history: [WorkoutSummary] { model.history.flatMap(\.workouts) }
+    private var comparison: Double? { WorkoutAnalysis.loadComparison(workout, history: history) }
+    /// The strength session logged for this workout, if there is one.
+    private var loggedSession: StrengthSession? {
+        model.sessions.first { session in
+            session.end != nil
+            && session.start >= workout.start.addingTimeInterval(-3600)
+            && session.start <= workout.end.addingTimeInterval(3600)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                headline
+                if workout.heartRate?.isEmpty == false { heartRateCard }
+                if zoneShare != nil { zonesCard }
+                if let focus { focusCard(focus) }
+                impactCard
+                if let recovery = workout.heartRateRecovery { recoveryCard(recovery) }
+                detailsCard
+                sourceCard
+            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 28)
+        }
+        .pulsePage()
+        .navigationTitle(L(workout.activity))
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await model.loadExercises() }
+    }
+
+    // MARK: - Headline
+
+    private var headline: some View {
+        Card(spacing: 16) {
+            HStack(spacing: 14) {
+                Image(systemName: WorkoutStyle.symbol(workout.activity))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(AppColors.metric(.strain), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L(workout.activity)).font(.title3.weight(.bold))
+                    Text(workout.start.formatted(date: .abbreviated, time: .shortened))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let intensity = WorkoutAnalysis.intensity(workout) {
+                    // The ring is this session's own intensity — the share of
+                    // heart-rate reserve it averaged — not the day's strain.
+                    VStack(spacing: 3) {
+                        ScoreRing(metric: .strain, value: intensity, size: 62)
+                        Text(L("intensity")).font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Divider().overlay(AppColors.divider)
+            HStack(spacing: 0) {
+                figure(duration(workout.minutes), "duration")
+                figure(workout.calories.map { number($0) } ?? "—", "calories", unit: "kcal")
+                if let distance = workout.distanceMeters, distance > 0 {
+                    figure(number(distance / 1000, digits: 2), "distance", unit: "km")
+                }
+                if let average = workout.averageHeartRate {
+                    figure(number(average), "averageHeartRate", unit: "bpm")
+                }
+            }
+        }
+    }
+
+    private func figure(_ value: String, _ title: String, unit: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value).font(.title3.weight(.bold)).monospacedDigit()
+                if let unit { Text(unit).font(.caption2).foregroundStyle(.tertiary) }
+            }
+            Text(L(title)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Heart rate
+
+    private var heartRateCard: some View {
+        Card(spacing: 12) {
+            HStack {
+                Label(L("heartRate"), systemImage: "heart.fill").font(AppTypography.cardTitle)
+                Spacer()
+                if let maximum = workout.maximumHeartRate {
+                    Text(L("maximumShort") + " " + number(maximum) + " bpm")
+                        .font(.caption.weight(.medium)).monospacedDigit().foregroundStyle(.secondary)
+                }
+            }
+            WorkoutHeartRateChart(workout: workout)
+            ZoneScale()
+        }
+    }
+
+    // MARK: - Zones
+
+    private var zonesCard: some View {
+        Card(spacing: 12) {
+            Label(L("timeInZones"), systemImage: "chart.bar.xaxis").font(AppTypography.cardTitle)
+            let minutes = WorkoutAnalysis.zoneMinutes(workout)
+            let share = zoneShare ?? []
+            let peak = max(1, minutes.max() ?? 1)
+            ForEach(Array(minutes.enumerated().reversed()), id: \.offset) { index, value in
+                HStack(spacing: 10) {
+                    Text("Z\(index)")
+                        .font(.caption.weight(.bold)).monospacedDigit()
+                        .foregroundStyle(WorkoutStyle.zoneColor(index))
+                        .frame(width: 24, alignment: .leading)
+                    GeometryReader { proxy in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(AppColors.surfaceRaised)
+                            Capsule().fill(WorkoutStyle.zoneColor(index))
+                                .frame(width: max(value > 0 ? 4 : 0, proxy.size.width * value / peak))
+                        }
+                    }
+                    .frame(height: 10)
+                    Text(duration(value)).font(.caption.weight(.medium)).monospacedDigit()
+                        .frame(width: 56, alignment: .trailing)
+                    Text(number(share.indices.contains(index) ? share[index] : 0) + "%")
+                        .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        .frame(width: 38, alignment: .trailing)
+                }
+            }
+            Text(L("zonesDetail")).font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - Focus
+
+    private func focusCard(_ focus: WorkoutAnalysis.Focus) -> some View {
+        Card(spacing: 12) {
+            HStack {
+                Label(L("cardioFocus"), systemImage: "target").font(AppTypography.cardTitle)
+                Spacer()
+                Text(L(focus.dominant)).font(.caption.weight(.semibold))
+                    .padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(AppColors.accentSoft, in: Capsule())
+                    .foregroundStyle(AppColors.accent)
+            }
+            // One bar, three parts: the split is a whole, not three numbers.
+            GeometryReader { proxy in
+                HStack(spacing: 2) {
+                    segment(focus.lowAerobic, proxy.size.width, WorkoutStyle.zoneColor(2))
+                    segment(focus.highAerobic, proxy.size.width, WorkoutStyle.zoneColor(4))
+                    segment(focus.anaerobic, proxy.size.width, WorkoutStyle.zoneColor(5))
+                }
+            }
+            .frame(height: 12)
+            focusRow("focusLowAerobic", focus.lowAerobic, WorkoutStyle.zoneColor(2))
+            focusRow("focusHighAerobic", focus.highAerobic, WorkoutStyle.zoneColor(4))
+            focusRow("focusAnaerobic", focus.anaerobic, WorkoutStyle.zoneColor(5))
+            Text(L("cardioFocusDetail")).font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func segment(_ share: Double, _ width: CGFloat, _ color: Color) -> some View {
+        Capsule().fill(color).frame(width: max(0, width * share / 100))
+    }
+
+    private func focusRow(_ title: String, _ share: Double, _ color: Color) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(L(title)).font(.caption)
+            Spacer()
+            Text(number(share) + "%").font(.caption.weight(.semibold)).monospacedDigit()
+        }
+    }
+
+    // MARK: - Impact
+
+    private var impactCard: some View {
+        Card(spacing: 10) {
+            Label(L("cardiacImpact"), systemImage: "bolt.heart").font(AppTypography.cardTitle)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(number(load)).font(.system(size: 34, weight: .bold)).monospacedDigit()
+                Text(L("cardiacLoadUnit")).font(.caption).foregroundStyle(.secondary)
+            }
+            if let comparison {
+                let above = comparison >= 0
+                Label(L(above ? "loadAboveUsual" : "loadBelowUsual")
+                        .replacingOccurrences(of: "{0}", with: number(abs(comparison))),
+                      systemImage: above ? "arrow.up.right" : "arrow.down.right")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(above ? AppColors.metric(.strain) : AppColors.accent)
+            } else {
+                Label(L("calibrating"), systemImage: "hourglass")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let share = WorkoutAnalysis.shareOfDay(workout, dayLoad: dayLoad) {
+                Text(L("shareOfDayStrain").replacingOccurrences(of: "{0}", with: number(share)))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text(L("cardiacImpactDetail")).font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var dayLoad: Double {
+        model.history.first { Calendar.current.isDate($0.date, inSameDayAs: workout.start) }?.rawLoad ?? 0
+    }
+
+    // MARK: - Recovery
+
+    private func recoveryCard(_ recovery: Double) -> some View {
+        Card(spacing: 8) {
+            Label(L("heartRateRecovery"), systemImage: "arrow.down.heart").font(AppTypography.cardTitle)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(number(recovery)).font(.system(size: 30, weight: .bold)).monospacedDigit()
+                Text("bpm").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text(L(HeartRateRecoveryEngine.band(recovery)))
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 9).padding(.vertical, 4)
+                    .background(AppColors.accentSoft, in: Capsule())
+                    .foregroundStyle(AppColors.accent)
+            }
+            Text(L("heartRateRecoveryDetail")).font(.caption2).foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - Strength details
+
+    private var detailsCard: some View {
+        Card(spacing: 12) {
+            Label(L("workoutDetails"), systemImage: "list.bullet.clipboard").font(AppTypography.cardTitle)
+            if let session = loggedSession {
+                ForEach(session.exerciseOrder, id: \.self) { id in
+                    HStack(spacing: 10) {
+                        if let exercise = model.exercise(id) {
+                            ExerciseThumbnail(exercise: exercise, size: 38)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.exercise(id)?.name ?? id).font(.caption.weight(.medium)).lineLimit(1)
+                            Text(session.sets.filter { $0.exerciseID == id }
+                                    .map { "\($0.reps)×\(number($0.weightKg, digits: 1))" }
+                                    .joined(separator: "  "))
+                                .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                        Spacer()
+                    }
+                }
+                NavigationLink { SessionDetail(session: session) } label: {
+                    Label(L("seeFullDetail"), systemImage: "chevron.right")
+                        .font(.caption.weight(.semibold)).foregroundStyle(AppColors.accent)
+                }.buttonStyle(.plain)
+            } else {
+                Text(L("workoutDetailsEmpty")).font(.subheadline).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    model.startSession(name: L(workout.activity), at: workout.start)
+                } label: {
+                    Label(L("logExercises"), systemImage: "plus")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        .background(AppColors.accentSoft, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .foregroundStyle(AppColors.accent)
+                }
+                .buttonStyle(.plain)
+                .disabled(model.activeSession != nil)
+            }
+        }
+    }
+
+    private var sourceCard: some View {
+        Card(spacing: 6) {
+            Label(L("source"), systemImage: "applewatch").font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(workout.source.isEmpty ? L("unknownSource") : workout.source).font(.subheadline)
+            if workout.measuredMinutes > 0, workout.measuredMinutes < workout.minutes * 0.8 {
+                // Worth saying: the zone split only covers part of the session.
+                Text(L("partialHeartRateCoverage")
+                        .replacingOccurrences(of: "{0}", with: duration(workout.measuredMinutes)))
+                    .font(.caption2).foregroundStyle(AppColors.warn)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// Heart rate through the session, over the zone bands it was counted in.
+private struct WorkoutHeartRateChart: View {
+    let workout: WorkoutSummary
+    @State private var selection: Date?
+
+    private var points: [TimelinePoint] { workout.heartRate ?? [] }
+    private var domain: ClosedRange<Double> {
+        let values = points.map(\.value)
+        let low = min(values.min() ?? 60, workout.restingHeartRate ?? 60)
+        let high = max(values.max() ?? 180, 100)
+        return (low - 6)...(high + 6)
+    }
+    private var nearest: TimelinePoint? {
+        guard let selection else { return nil }
+        return points.min { abs($0.date.timeIntervalSince(selection)) < abs($1.date.timeIntervalSince(selection)) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let nearest {
+                HStack(spacing: 6) {
+                    Text(number(nearest.value) + " bpm").font(.caption.weight(.bold)).monospacedDigit()
+                    Text(nearest.date.formatted(date: .omitted, time: .shortened))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            Chart {
+                bands
+                series
+                if let nearest {
+                    RuleMark(x: .value("t", nearest.date))
+                        .foregroundStyle(AppColors.ink.opacity(0.35))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                }
+            }
+            .chartYScale(domain: domain)
+            .chartYAxis {
+                AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { _ in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [2, 4])).foregroundStyle(AppColors.border)
+                    AxisValueLabel().font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                    AxisValueLabel(format: .dateTime.hour().minute())
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .chartXSelection(value: $selection)
+            .chartPlotStyle { $0.clipped() }
+            .frame(height: 170)
+        }
+    }
+
+    /// The zone bands behind the line, so a peak is read as "zone 4" rather
+    /// than as a number.
+    @ChartContentBuilder private var bands: some ChartContent {
+        if let resting = workout.restingHeartRate, let maximum = workout.maximumHeartRateReference {
+            ForEach(0..<6, id: \.self) { zone in
+                if let bounds = WorkoutAnalysis.zoneBounds(zone, resting: resting, maximum: maximum) {
+                    RectangleMark(yStart: .value("from", bounds.lowerBound),
+                                  yEnd: .value("to", bounds.upperBound))
+                        .foregroundStyle(WorkoutStyle.zoneColor(zone).opacity(0.13))
+                }
+            }
+        }
+    }
+
+    @ChartContentBuilder private var series: some ChartContent {
+        ForEach(points) { point in
+            LineMark(x: .value("t", point.date), y: .value("bpm", point.value))
+                .foregroundStyle(AppColors.metric(.strain))
+                .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                .interpolationMethod(.monotone)
+        }
+    }
+}
+
+/// The colour scale under the chart, so the bands have a legend.
+private struct ZoneScale: View {
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 2) {
+                ForEach(0..<6, id: \.self) { zone in
+                    Capsule().fill(WorkoutStyle.zoneColor(zone)).frame(height: 6)
+                }
+            }
+            HStack(spacing: 2) {
+                ForEach(0..<6, id: \.self) { zone in
+                    Text("Z\(zone)").font(.caption2).foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+}
+
+enum WorkoutStyle {
+    static func symbol(_ activity: String) -> String {
+        switch activity {
+        case "running": "figure.run"
+        case "walking", "hiking": "figure.walk"
+        case "cycling": "figure.outdoor.cycle"
+        case "swimming": "figure.pool.swim"
+        case "strength", "functionalStrength": "dumbbell.fill"
+        case "yoga": "figure.yoga"
+        case "rowing": "figure.rower"
+        case "elliptical": "figure.elliptical"
+        case "stairs": "figure.stair.stepper"
+        case "hiit": "bolt.heart.fill"
+        case "martialArts": "figure.martial.arts"
+        case "coreTraining": "figure.core.training"
+        default: "figure.mixed.cardio"
+        }
+    }
+    /// Blue for the easy end through to red at the top, which is the
+    /// convention every heart-rate display uses.
+    static func zoneColor(_ zone: Int) -> Color {
+        switch zone {
+        case 0: .adaptive(light: 0x8A93A6, dark: 0x9AA3B5)
+        case 1: .adaptive(light: 0x2E76C7, dark: 0x6BA6EC)
+        case 2: .adaptive(light: 0x0E9C7F, dark: 0x27F6CC)
+        case 3: .adaptive(light: 0xB08900, dark: 0xF5D65B)
+        case 4: .adaptive(light: 0xBE5411, dark: 0xFF9E52)
+        default: .adaptive(light: 0xB3261E, dark: 0xFF6B61)
+        }
+    }
+}

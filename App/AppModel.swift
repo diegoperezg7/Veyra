@@ -414,10 +414,11 @@ import PulseCore
         saveSession(.init(name: template.name, sets: sets))
         route = "activeStrength"
     }
-    /// Starts an empty session and opens it.
-    func startSession(name: String) {
+    /// Starts an empty session and opens it. `at` lets a session logged from a
+    /// recorded workout carry that workout's start time, so the two line up.
+    func startSession(name: String, at date: Date = Date()) {
         guard activeSession == nil else { route = "activeStrength"; return }
-        saveSession(.init(name: name, sets: []))
+        saveSession(.init(start: date, name: name, sets: []))
         route = "activeStrength"
     }
     /// Today's run of a workout already done, with the same exercises and

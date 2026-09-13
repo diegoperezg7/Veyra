@@ -48,9 +48,13 @@ the specific reasons it is not higher.
 |:---:|:---:|:---:|
 | <img src="Documentation/Screenshots/10-library.png" width="240"> | <img src="Documentation/Screenshots/11-fitness.png" width="240"> | <img src="Documentation/Screenshots/12-trends.png" width="240"> |
 
-| Settings | Home · dark | Library · dark |
+| Workout | Settings | Home · dark |
 |:---:|:---:|:---:|
-| <img src="Documentation/Screenshots/13-settings.png" width="240"> | <img src="Documentation/Screenshots/14-home-dark.png" width="240"> | <img src="Documentation/Screenshots/15-library-dark.png" width="240"> |
+| <img src="Documentation/Screenshots/16-workout.png" width="240"> | <img src="Documentation/Screenshots/13-settings.png" width="240"> | <img src="Documentation/Screenshots/14-home-dark.png" width="240"> |
+
+| Library · dark | | |
+|:---:|:---:|:---:|
+| <img src="Documentation/Screenshots/15-library-dark.png" width="240"> | | |
 
 </div>
 
@@ -108,6 +112,16 @@ corrections sit on top: resting heart rate, training, HRV, sleep, sleep
 regularity, steps, stress and body composition. The correction is scaled by the
 confidence, so with little data the estimate stays close to your real age rather
 than asserting a swing it cannot support.
+
+### A workout, in full
+
+Apple Health records a session; it does not explain it. Opening a workout shows
+the intensity it averaged as a share of heart-rate reserve, the heart-rate trace
+over the zone bands it was counted in, the minutes in each zone from Z0 up, the
+three-zone cardio focus, the session's own Edwards load against your usual
+sessions and its share of the day, and the heart-rate recovery the watch
+measured. Health stores no exercises, sets or weights, so the screen offers to
+log them — and shows them there once you have.
 
 ### Training log
 

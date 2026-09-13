@@ -171,6 +171,26 @@ fracción de tu peso levanta cada movimiento.
 
 ---
 
+## Detalle de un entrenamiento
+
+| Cálculo | Nivel | Fundamento |
+| --- | --- | --- |
+| **Zonas de frecuencia cardíaca** | Publicado | Reserva cardíaca (Karvonen). Z1 empieza en el 50% y cada zona abarca un 10%. Z0 es todo lo que queda por debajo: calentamiento y descansos |
+| **Carga cardíaca de la sesión** | Publicado | Carga de Edwards: minutos en cada zona por el número de zona. El tiempo en Z0 no suma, que es justamente el punto del método |
+| **Intensidad** | Publicado | La media de la sesión expresada como porcentaje de reserva cardíaca, que es la forma comparable entre personas y sesiones |
+| **Foco cardiovascular** | Derivado | Modelo de tres zonas (Seiler): por debajo del primer umbral ventilatorio, entre los dos, y por encima del segundo. Sobre reserva cardíaca, VT1 ronda el 70% y VT2 el 90%, así que Z0–Z2 es aeróbico bajo, Z3–Z4 alto y Z5 anaeróbico. **Los umbrales son individuales**: estos son medias poblacionales y la app lo dice en la propia tarjeta |
+| **Recuperación cardíaca** | Publicado | La medición del propio reloj (`heartRateRecoveryOneMinute`), asociada al entrenamiento que la precede. Las bandas siguen a Cole et al., NEJM 1999, con 12 lpm como umbral |
+| **Comparación con lo habitual** | Derivado | Carga de esta sesión contra la mediana de las anteriores. Necesita al menos cuatro sesiones previas; por debajo de eso devuelve nada en vez de un número sin sentido |
+
+La serie de pulso se submuestrea a un punto por minuto quedándose con el
+**máximo** de cada intervalo, no con la media: promediar borra los picos, que
+son justo lo que se quiere ver.
+
+Cuando el reloj registró pulso durante menos del 80% de la sesión, la pantalla
+lo advierte: el reparto por zonas solo cubre ese tramo.
+
+---
+
 ## Catálogo de ejercicios
 
 268 ejercicios con ilustraciones, músculos, material e instrucciones, derivados

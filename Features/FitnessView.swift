@@ -108,7 +108,7 @@ struct FitnessView: View {
                         EmptyMetricState()
                     } else {
                         ForEach(Array(workouts.prefix(20))) { workout in
-                            NavigationLink { WorkoutDetail(workout: workout) } label: { WorkoutRow(workout: workout) }
+                            NavigationLink { WorkoutDetailView(workout: workout) } label: { WorkoutRow(workout: workout) }
                                 .buttonStyle(.plain)
                         }
                     }
@@ -209,6 +209,9 @@ private struct WorkoutRow: View {
                     if let calories = workout.calories, calories > 0 {
                         Text(number(calories) + " kcal")
                     }
+                    if let average = workout.averageHeartRate {
+                        Text(number(average) + " bpm")
+                    }
                 }
                 .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
             }
@@ -216,18 +219,6 @@ private struct WorkoutRow: View {
         }
         .padding(.vertical, 5)
     }
-    private var symbol: String {
-        switch workout.activity {
-        case "running": "figure.run"
-        case "walking", "hiking": "figure.walk"
-        case "cycling": "figure.outdoor.cycle"
-        case "swimming": "figure.pool.swim"
-        case "strength", "functionalStrength": "dumbbell.fill"
-        case "yoga": "figure.yoga"
-        case "rowing": "figure.rower"
-        default: "figure.mixed.cardio"
-        }
-    }
+    private var symbol: String { WorkoutStyle.symbol(workout.activity) }
 }
 
-struct WorkoutDetail: View { let workout: WorkoutSummary; var body: some View { Form { Section { ValueRow(title: "duration", value: duration(workout.minutes)); ValueRow(title: "calories", value: number(workout.calories) + " kcal"); ValueRow(title: "distance", value: number(workout.distanceMeters) + " m"); ValueRow(title: "source", value: workout.source) }; Section(L("heartRateZones")) { ForEach(Array(workout.zoneMinutes.enumerated()), id: \.offset) { index, minutes in ValueRow(title: "Z\(index + 1)", value: duration(minutes)) } } }.navigationTitle(L(workout.activity)) } }

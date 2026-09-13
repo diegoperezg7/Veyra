@@ -67,6 +67,9 @@ struct HomeView: View {
                     quickAction("workouts", symbol: "dumbbell.fill") { model.route = "strength" }
                     quickAction("trends", symbol: "chart.xyaxis.line") { model.tab = "trends" }
                 }
+                // A workout you just finished is the thing you want to open, so
+                // it belongs on the first screen rather than two taps away.
+                if !todaysWorkouts.isEmpty { todaysWorkoutsCard }
                 ForEach(model.preferences.enabledCards.filter { $0 != "energy" && $0 != "stress" }, id: \.self) { card in cardView(card) }
                 Text(model.currentSnapshot.map { L("updated") + " " + $0.updatedAt.formatted(date: .abbreviated, time: .shortened) } ?? L("connectForData")).font(.caption2).foregroundStyle(.secondary).padding(.vertical, 8)
             }.padding(.horizontal, 18).padding(.bottom, 24)
@@ -79,6 +82,23 @@ struct HomeView: View {
         .refreshable { await model.sync() }
         .sheet(isPresented: $calendarOpen) { @Bindable var model = model; NavigationStack { DatePicker(L("date"), selection: $model.selectedDate, in: ...Date(), displayedComponents: .date).datePickerStyle(.graphical).padding().toolbar { ToolbarItem(placement: .confirmationAction) { Button(L("done")) { calendarOpen = false } } } .presentationDetents([.medium]) } }
     }
+    private var todaysWorkouts: [WorkoutSummary] {
+        model.today.workouts.sorted { $0.start > $1.start }
+    }
+
+    private var todaysWorkoutsCard: some View {
+        Card(spacing: 12) {
+            Label(L("todaysWorkout"), systemImage: "figure.run").font(AppTypography.cardTitle)
+            ForEach(todaysWorkouts) { workout in
+                NavigationLink { WorkoutDetailView(workout: workout) } label: {
+                    HomeWorkoutRow(workout: workout)
+                }
+                .buttonStyle(.plain)
+                if workout.id != todaysWorkouts.last?.id { Divider().overlay(AppColors.divider) }
+            }
+        }
+    }
+
     private func shift(_ offset: Int) { if let day = Calendar.current.date(byAdding: .day, value: offset, to: model.selectedDate) { model.selectedDate = day } }
     private func quickAction(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -140,3 +160,32 @@ private struct DaySignalCard: View {
     }
 }
 
+
+/// The compact row the home screen uses: enough to recognise the session, and a
+/// tap to open all of it.
+private struct HomeWorkoutRow: View {
+    let workout: WorkoutSummary
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: WorkoutStyle.symbol(workout.activity))
+                .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(AppColors.metric(.strain), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L(workout.activity)).font(.subheadline.weight(.medium))
+                HStack(spacing: 8) {
+                    Text(duration(workout.minutes))
+                    if let calories = workout.calories, calories > 0 { Text(number(calories) + " kcal") }
+                    if let average = workout.averageHeartRate { Text(number(average) + " bpm") }
+                }
+                .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+            }
+            Spacer(minLength: 6)
+            Text(workout.start.formatted(date: .omitted, time: .shortened))
+                .font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
+            Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+}
