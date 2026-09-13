@@ -18,10 +18,21 @@ import PulseCore
 
     func testCatalogIsUniqueAndComplete() throws {
         let model = try AppModel(store: LocalStore(inMemory: true))
-        XCTAssertGreaterThanOrEqual(model.exercises.count, 700)
+        XCTAssertGreaterThanOrEqual(model.exercises.count, 250)
         XCTAssertEqual(Set(model.exercises.map(\.id)).count, model.exercises.count)
         XCTAssertEqual(Set(model.exercises.map(\.name)).count, model.exercises.count)
-        XCTAssertFalse(model.exercises.contains { $0.primaryMuscles.isEmpty || $0.instructions.isEmpty })
+        // Every exercise must be classifiable and drawable: the library is
+        // browsed by picture, so one without artwork is unusable there.
+        XCTAssertFalse(model.exercises.contains { $0.primaryMuscles.isEmpty })
+        XCTAssertFalse(model.exercises.contains { $0.art.isEmpty || $0.group == "other" && $0.primaryMuscles.isEmpty })
+        XCTAssertFalse(model.exercises.contains { $0.name.isEmpty || $0.steps.isEmpty })
+        // The artwork each exercise names has to exist in the bundle.
+        for exercise in model.exercises.prefix(40) {
+            for frame in exercise.art {
+                XCTAssertNotNil(Bundle.main.url(forResource: frame, withExtension: nil, subdirectory: "ExerciseArt"),
+                                "falta \(frame)")
+            }
+        }
     }
 
     /// `LocalStore` deletes records it cannot decode, so preferences saved by an

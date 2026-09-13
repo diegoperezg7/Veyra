@@ -34,7 +34,12 @@ targets:
       - Persistence
       - Services
       - Shared
-      - Resources
+      - path: Resources
+        excludes: [ExerciseArt]
+      # A folder reference: 540 illustrations as individual build entries would
+      # bloat the project file for no benefit, and the app looks them up by name.
+      - path: Resources/ExerciseArt
+        type: folder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: local.pulselab
@@ -70,7 +75,7 @@ targets:
       - path: Shared
         excludes: [StrengthActivity.swift]
       - path: Resources
-        excludes: [exercises.json, Assets.xcassets]
+        excludes: [exercises.json, Assets.xcassets, ExerciseArt]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: local.pulselab.watch
@@ -101,7 +106,7 @@ targets:
       - Shared/Localization.swift
       - Shared/StrengthActivity.swift
       - path: Resources
-        excludes: [exercises.json, Assets.xcassets]
+        excludes: [exercises.json, Assets.xcassets, ExerciseArt]
     info:
       path: Widgets/Info.plist
       properties:
@@ -123,7 +128,7 @@ targets:
       - Shared/SharedSnapshot.swift
       - Shared/Localization.swift
       - path: Resources
-        excludes: [exercises.json, Assets.xcassets]
+        excludes: [exercises.json, Assets.xcassets, ExerciseArt]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: local.pulselab.watch.widgets
