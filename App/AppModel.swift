@@ -7,6 +7,9 @@ import PulseCore
 
 @Observable @MainActor final class AppModel {
     var preferences = UserPreferences()
+    /// Always in ascending date order. Every path that assigns it preserves
+    /// that — the store reads sorted, a sync appends in day order — so screens
+    /// can slice it directly instead of re-sorting 365 entries on every redraw.
     var history: [DailySnapshot] = [] { didSet { indexVitals() } }
     /// The most recent sample of each vital, and each vital's whole series,
     /// built once per history change. Screens used to search the entire history
@@ -102,6 +105,7 @@ import PulseCore
             if arguments.contains("--seed") {
                 // In-memory store only, so this can never reach a real install.
                 history = SampleData.history()
+                sessions = SampleData.strengthSessions()
                 preferences.birthDate = Calendar.current.date(byAdding: .year, value: -34, to: Date())
                 preferences.biologicalSex = "male"
                 preferences.healthConnected = true
@@ -193,6 +197,16 @@ import PulseCore
     /// used to start its own full import.
     static let observerSyncInterval: TimeInterval = 600
     private var lastObserverSync: Date?
+
+    /// Syncs only if the last one is old enough to be worth repeating. Coming
+    /// back to the app a minute after leaving it does not need another import.
+    func syncIfStale(minimum: TimeInterval = 120) async {
+        if let last = preferences.lastSyncAt, Date().timeIntervalSince(last) < minimum {
+            registerObservers()
+            return
+        }
+        await sync()
+    }
 
     func syncFromObserver() async {
         if let last = lastObserverSync, Date().timeIntervalSince(last) < Self.observerSyncInterval { return }
@@ -522,7 +536,7 @@ extension AppModel {
 
     private func makeWellnessAge(now: Date) -> WellnessAgeEstimate? {
         let calendar = Calendar.current
-        let days = Array(history.sorted { $0.date < $1.date }.suffix(42))
+        let days = Array(history.suffix(42))
         let inputs = WellnessAgeInputs(
             chronologicalAge: WellnessAgeEngine.age(from: preferences.birthDate, now: now),
             biologicalSex: preferences.biologicalSex,

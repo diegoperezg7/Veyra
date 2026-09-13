@@ -21,3 +21,26 @@ Si en el futuro se sustituyen por imágenes propias o con licencia comprada,
 basta con reemplazar los `imageset` `SceneRecovery`, `SceneStrain`, `SceneSleep`,
 `SceneStress` y `SceneEnergy` en `Resources/Assets.xcassets` y actualizar esta
 tabla.
+
+---
+
+## Ilustraciones de ejercicios
+
+Las 537 ilustraciones de `Resources/ExerciseArt/`, junto con los nombres,
+músculos, material e instrucciones de `Resources/exercises.json`, derivan del
+[dataset de Everkinetic](https://github.com/everkinetic/data) de Greg Priday,
+bajo **CC BY-SA 4.0**.
+
+**Qué se cambió:** los PNG originales son línea negra sobre papel blanco. Se
+convirtieron a máscaras de alfa —el blanco pasa a transparente para que la app
+pueda teñir el dibujo—, se recortaron a la figura y los dos fotogramas de cada
+ejercicio se escalaron con un mismo factor para que la animación entre ellos no
+dé saltos. Los nombres y las instrucciones se tradujeron al español.
+
+Estas obras derivadas **siguen bajo CC BY-SA 4.0**, como exige la licencia, y
+quedan por tanto **fuera de los términos de todos los derechos reservados** que
+cubren el resto del repositorio. Cualquiera puede reutilizarlas bajo la misma
+licencia citando a Everkinetic.
+
+Se evaluó y descartó `free-exercise-db`: la procedencia de sus imágenes lleva
+años sin aclararse en las incidencias del repositorio.

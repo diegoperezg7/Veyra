@@ -49,13 +49,25 @@ final class StrengthTests: XCTestCase {
         let finish = app.buttons["Finalizar y guardar"].firstMatch
         XCTAssertTrue(finish.waitForExistence(timeout: 5))
         finish.tap()
-        // The confirmation sheet asks before discarding anything unticked.
-        let confirm = app.buttons["Finalizar y guardar"].firstMatch
+
+        // The confirmation dialog asks before dropping anything unticked. It
+        // has to be addressed through `sheets`: the button behind it carries
+        // the same label and is the one a plain query resolves to.
+        let confirm = app.sheets.buttons["Finalizar y guardar"]
         XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.sheets.buttons["Descartar entrenamiento"].exists,
+                      "el diálogo debe ofrecer descartar")
         confirm.tap()
 
-        // Back on the strength screen, the workout is offered to repeat.
-        XCTAssertTrue(app.staticTexts["Repetir un entrenamiento"].waitForExistence(timeout: 8),
+        // Back on the strength screen, the workout is offered to repeat. The
+        // card can sit below the fold once there is a volume summary above it.
+        let repeatCard = app.staticTexts["Repetir un entrenamiento"]
+        var attempts = 0
+        while !repeatCard.exists && attempts < 4 {
+            app.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(repeatCard.waitForExistence(timeout: 8),
                       "el entrenamiento terminado no aparece para repetir")
     }
 }

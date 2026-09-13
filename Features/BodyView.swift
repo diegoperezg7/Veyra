@@ -10,7 +10,7 @@ struct BodyView: View {
     @State private var range = 90
 
     private var days: [DailySnapshot] {
-        Array(model.history.sorted { $0.date < $1.date }.suffix(range))
+        Array(model.history.suffix(range))
     }
     private func series(_ key: String) -> [TimelinePoint] {
         days.compactMap { day in day.vital(key).map { TimelinePoint(date: day.date, value: $0.value) } }

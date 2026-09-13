@@ -18,3 +18,7 @@ Veyra.xcodeproj/
 
 # Legacy project kept only locally
 PulseLab.xcodeproj.legacy/
+
+# Python bytecode from the data generators
+__pycache__/
+*.pyc

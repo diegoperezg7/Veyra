@@ -54,12 +54,12 @@ struct RootView: View {
             model.publish()
             #else
             model.registerObservers()
-            await model.sync()
+            await model.syncIfStale()
             while !Task.isCancelled {
                 let seconds = UInt64(max(1, model.preferences.autoSyncMinutes)) * 60 * 1_000_000_000
                 try? await Task.sleep(nanoseconds: seconds)
                 guard !Task.isCancelled else { return }
-                await model.sync()
+                await model.syncIfStale(minimum: 60)
             }
             #endif
         }
@@ -88,6 +88,7 @@ struct RouteView: View {
             case "cycle": CycleView()
             case "body": BodyView()
             case "health": BiologyView()
+            case "library": ExerciseLibraryView(onSelect: nil)
             default: ContentUnavailableView(L("noData"), systemImage: "square.stack")
             }
         }

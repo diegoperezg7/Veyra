@@ -40,13 +40,17 @@ the specific reasons it is not higher.
 |:---:|:---:|:---:|
 | <img src="Documentation/Screenshots/04-stress.png" width="240"> | <img src="Documentation/Screenshots/05-biology.png" width="240"> | <img src="Documentation/Screenshots/06-biological-age.png" width="240"> |
 
-| Body | Fitness | Trends |
+| Body | Journal | Training |
 |:---:|:---:|:---:|
-| <img src="Documentation/Screenshots/07-body.png" width="240"> | <img src="Documentation/Screenshots/08-fitness.png" width="240"> | <img src="Documentation/Screenshots/09-trends.png" width="240"> |
+| <img src="Documentation/Screenshots/07-body.png" width="240"> | <img src="Documentation/Screenshots/08-journal.png" width="240"> | <img src="Documentation/Screenshots/09-strength.png" width="240"> |
 
-| Settings | Home · dark | Battery · dark |
+| Exercise library | Fitness | Trends |
 |:---:|:---:|:---:|
-| <img src="Documentation/Screenshots/10-settings.png" width="240"> | <img src="Documentation/Screenshots/11-home-dark.png" width="240"> | <img src="Documentation/Screenshots/12-battery-dark.png" width="240"> |
+| <img src="Documentation/Screenshots/10-library.png" width="240"> | <img src="Documentation/Screenshots/11-fitness.png" width="240"> | <img src="Documentation/Screenshots/12-trends.png" width="240"> |
+
+| Settings | Home · dark | Library · dark |
+|:---:|:---:|:---:|
+| <img src="Documentation/Screenshots/13-settings.png" width="240"> | <img src="Documentation/Screenshots/14-home-dark.png" width="240"> | <img src="Documentation/Screenshots/15-library-dark.png" width="240"> |
 
 </div>
 
@@ -65,6 +69,15 @@ the specific reasons it is not higher.
 | **Strain** | The day's load | Heart-rate zone load, strength load, non-workout activity |
 | **Stress** | Physiological activation | HR and HRV against your own baseline, with movement as context |
 | **Energy reserves** | Body battery, 0–100 | 15-minute simulation from the onset of the night |
+
+Alongside them, the readings a watch records that carry a published reference
+band of their own: wrist-temperature deviation, Apple's sleeping breathing
+disturbances, chronotype from the mid-sleep point, atrial-fibrillation burden,
+walking steadiness, blood pressure under both ACC/AHA and ESC/ESH — they
+disagree, so both are shown — VO₂max percentile, and the week's activity against
+the WHO guideline. Where Apple publishes the threshold itself, it is read from
+HealthKit rather than hard-coded, so Veyra can never contradict the Health app
+about the same sample.
 
 Every score keeps its components, their weights and its confidence. The full
 formulas are in [`Documentation/ALGORITHMS.md`](Documentation/ALGORITHMS.md),
@@ -96,6 +109,50 @@ regularity, steps, stress and body composition. The correction is scaled by the
 confidence, so with little data the estimate stays close to your real age rather
 than asserting a swing it cannot support.
 
+### Training log
+
+268 exercises, browsed by picture rather than by name, filtered by muscle group
+and equipment. Each one animates between two frames to show the movement instead
+of a pose.
+
+Logging a session is a card per exercise and a row per set: weight, reps, a tick.
+**New sets and repeated workouts arrive pre-filled from the last time you did
+that exercise**, which is the difference between confirming numbers and typing
+them. Tapping a field selects it, so typing replaces the suggestion. An exercise
+you have never logged opens empty — no invented starting weight.
+
+### Journal
+
+Habits with their own icon and a switch: minus on one side, plus on the other,
+the chosen side lit. "Not recorded" is a real third state and stays
+distinguishable from "no", because a day you never filled in must not count as a
+day without caffeine. `JournalInsightEngine` then compares each habit against the
+recovery that followed it.
+
+---
+
+## Performance
+
+A health app runs all day, so the cost of running it is part of the design.
+
+- **Launch reads 90 days, not the whole history.** A year of snapshots is 10.5 MB
+  of JSON — measured — and decoding it was the slowest thing the app did. The
+  rest is read once there is something on screen. The exercise catalogue is
+  decoded when a training screen first needs it.
+- **Nothing is observed immediately except a finished workout.** Heart rate used
+  to wake the app on every sample the watch wrote — dozens of times a day, each
+  one starting a full import of forty types. It is hourly now, observations
+  within ten minutes are coalesced, and an observation recalculates three days
+  rather than the whole window.
+- **Vital lookups are indexed**, not searched. Biology alone used to walk the
+  entire history eighteen times per redraw.
+- **The artwork cache is bounded**, so scrolling the library does not hold 537
+  decoded bitmaps until the system is already under memory pressure.
+- **The history is sorted once, not per redraw**, and returning to the app does
+  not repeat a sync that just ran.
+
+These are pinned by tests, not just by intent.
+
 ---
 
 ## Architecture
@@ -109,6 +166,9 @@ PulseCore/          Pure Swift package. No UI, no HealthKit. All the engines.
 ├── ConfidenceEngine     Confidence % = coverage × maturity × recency
 ├── WellnessAgeEngine    Fitness anchor and its corrections
 ├── BodyCompositionEngine BMI and body-fat reference scales
+├── ScreeningEngines     Published reference bands for the watch's own readings
+├── SleepRegularity      Sleep Regularity Index and heart-rate recovery
+├── StrengthHistory      What you lifted last time, and this week's volume
 └── MetricNarrator       Local, deterministic per-metric summaries
 
 App/            Design system, scenes, charts, app model
@@ -117,6 +177,7 @@ Health/         HealthKit client
 Persistence/    SwiftData
 Watch/          watchOS app
 Widgets/        WidgetKit (iOS and watchOS)
+Tools/          Generators for committed data (the exercise catalogue)
 ```
 
 `PulseCore` imports neither HealthKit nor SwiftUI, so the engines are tested
@@ -153,6 +214,10 @@ This is a personal project, and it is worth saying plainly:
   publishes no official type for them, so they stay in your scale's own app
   however faithfully you sync. Lean mass does come through.
 - **Apple does not expose the user's name** to apps, so Veyra cannot read it.
+- **Health reports a denied read as an empty result**, never as an error, so an
+  app cannot tell "no permission" from "no data". Settings → Diagnostics has a
+  read probe that reports sample counts per type, which is the only way to see
+  on the device which permission is actually off.
 
 ---
 
@@ -160,6 +225,13 @@ This is a personal project, and it is worth saying plainly:
 
 The header photographs are verified public-domain landscapes; provenance is in
 [`Documentation/CREDITS.md`](Documentation/CREDITS.md).
+
+The exercise illustrations, names and instructions derive from the
+[Everkinetic dataset](https://github.com/everkinetic/data) by Greg Priday, used
+under **CC BY-SA 4.0**. The artwork was converted to alpha masks so the app can
+tint it, and the Spanish translations are ours; both remain CC BY-SA and are
+therefore **outside** this repository's all-rights-reserved terms. See
+[`Resources/ExerciseArt/ATTRIBUTION.md`](Resources/ExerciseArt/ATTRIBUTION.md).
 
 ---
 

@@ -9,6 +9,31 @@ import PulseCore
 /// trend, nights with real stage structure and workouts on some days. Random
 /// noise would make charts that look busy but tell you nothing about layout.
 enum SampleData {
+    /// A few logged strength workouts, so the training screens have something
+    /// to show in review builds and screenshots. In-memory only, like the rest
+    /// of the sample history.
+    static func strengthSessions(now: Date = Date(), calendar: Calendar = .current) -> [StrengthSession] {
+        let plans: [(Int, String, [(String, Int, Double, Int)])] = [
+            (2, "Empuje", [("bench-press", 10, 62.5, 4), ("incline-bench-press", 10, 45, 3),
+                           ("low-triceps-extension-with-cable", 12, 25, 3)]),
+            (4, "Pierna", [("barbell-squat", 8, 90, 4), ("leg-press", 12, 140, 3),
+                           ("barbell-dead-lifts", 6, 110, 3)]),
+            (6, "Tirón", [("seated-cable-rows", 10, 55, 4), ("biceps-curls-with-barbell", 12, 30, 3)])
+        ]
+        return plans.compactMap { daysAgo, name, blocks in
+            guard let start = calendar.date(byAdding: .day, value: -daysAgo, to: now) else { return nil }
+            var sets: [StrengthSet] = []
+            for (exercise, reps, weight, count) in blocks {
+                for index in 0..<count {
+                    // A little drift across the sets, the way a real session goes.
+                    sets.append(.init(exerciseID: exercise, reps: max(4, reps - index),
+                                      weightKg: weight, completed: true))
+                }
+            }
+            return StrengthSession(start: start, end: start.addingTimeInterval(58 * 60), name: name, sets: sets)
+        }
+    }
+
     static func history(days: Int = 90, calendar: Calendar = .current, now: Date = Date()) -> [DailySnapshot] {
         var state = Generator(seed: 20_260_913)
         let today = calendar.startOfDay(for: now)

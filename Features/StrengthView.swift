@@ -244,7 +244,10 @@ struct ActiveStrengthView: View {
             if let session {
                 content(session)
             } else {
-                ContentUnavailableView(L("noActiveWorkout"), systemImage: "figure.strengthtraining.traditional")
+                // Finishing swaps this view for the strength screen in place.
+                // Reassigning `model.route` from inside the sheet dismissed the
+                // whole sheet instead, dropping the user back on Home.
+                StrengthView()
             }
         }
         .navigationTitle(session?.name ?? L("strength"))
@@ -371,15 +374,11 @@ struct ActiveStrengthView: View {
         current.end = Date()
         model.saveSession(current)
         session = nil
-        // Back to the strength screen rather than out of the sheet entirely:
-        // the workout that was just finished is there, ready to be repeated.
-        model.route = "strength"
     }
     private func discard() {
         guard let current = session else { return }
         model.deleteSession(current)
         session = nil
-        model.route = "strength"
     }
 }
 

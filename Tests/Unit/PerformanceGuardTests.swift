@@ -71,3 +71,35 @@ import HealthKit
                                     "las observaciones deben agruparse, no sincronizar una por una")
     }
 }
+
+/// The sample history is what review builds and screenshots show, so its
+/// exercise ids have to exist in the catalogue that ships alongside it.
+@MainActor final class SampleDataTests: XCTestCase {
+    func testSampleWorkoutsReferenceRealExercises() async throws {
+        let model = try AppModel(store: LocalStore(inMemory: true))
+        await model.loadExercises()
+        let catalogue = Set(model.exercises.map(\.id))
+        let referenced = Set(SampleData.strengthSessions().flatMap { $0.sets.map(\.exerciseID) })
+        XCTAssertFalse(referenced.isEmpty)
+        XCTAssertTrue(referenced.isSubset(of: catalogue),
+                      "faltan del catálogo: \(referenced.subtracting(catalogue).sorted())")
+    }
+}
+
+/// Screens slice `history` directly instead of sorting it, so the order has to
+/// be an invariant rather than a hope.
+@MainActor final class HistoryOrderTests: XCTestCase {
+    func testHistoryIsSortedAfterEveryLoadPath() async throws {
+        let store = try LocalStore(inMemory: true)
+        let calendar = Calendar.current
+        // Saved out of order on purpose.
+        for offset in [5, 1, 9, 3, 7, 0, 2] {
+            let date = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -offset, to: Date())!)
+            try store.save(DailySnapshot(date: date), key: "daily.\(offset)", kind: "daily", date: date)
+        }
+        let model = try AppModel(store: store)
+        XCTAssertEqual(model.history.map(\.date), model.history.map(\.date).sorted())
+        await model.loadRemainingHistory()
+        XCTAssertEqual(model.history.map(\.date), model.history.map(\.date).sorted())
+    }
+}

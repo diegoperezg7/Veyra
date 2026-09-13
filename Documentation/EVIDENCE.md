@@ -151,3 +151,38 @@ banda es de la literatura, o el umbral lo publica Apple y se lee de HealthKit.
 | **Presión arterial** | ACC/AHA 2017 y, en paralelo, ESC/ESH 2023, que discrepan: 135/85 es grado 1 en Estados Unidos y normal-alta en Europa. Se muestran ambas. Clasifica sobre la mediana de varias tomas, nunca sobre una | Biología → Signos de alerta |
 | **Percentil de VO₂máx** | Mediana de la misma curva ACSM que usa la edad de bienestar, con aproximación normal a la dispersión del registro FRIEND (DE 7 hombres, 6 mujeres). Es una cifra derivada: no leer más de unos pocos puntos de precisión | Fitness → Frente a la población |
 | **Tiempo en zonas por semana** | OMS 2020: 150–300 min moderados o 75–150 vigorosos; los vigorosos cuentan doble. Intensidad por reserva cardíaca según ACSM. Estimación conservadora: andar rápido por debajo del 50% de reserva no se cuenta | Fitness → Frente a la población |
+
+---
+
+## Registro de fuerza
+
+El registro de entrenamiento no estima nada: guarda lo que levantaste. Las dos
+cifras derivadas son estas.
+
+| Cálculo | Nivel | Fundamento |
+| --- | --- | --- |
+| **Volumen** | Publicado | `repeticiones × peso`, sumado solo sobre las series marcadas. Es la definición estándar de volumen de carga en la literatura de entrenamiento de fuerza |
+| **1RM estimado** | Publicado | Fórmula de Epley, `peso × (1 + reps/30)`, limitada a 1–12 repeticiones porque su error crece deprisa por encima |
+| **Volumen por grupo muscular** | Diseño | Cada serie cuenta entera para su músculo primario y nada para los secundarios. Repartirla implicaría una precisión que el catálogo no tiene |
+| **Peso sugerido** | — | No es una estimación: es lo que levantaste la última vez en ese ejercicio. Un ejercicio sin historial abre en blanco. Veyra no propone un peso "normal para tu peso corporal": esas tablas no son fiables y un número inventado en un campo es peor que un campo vacío |
+
+Las series con peso corporal aportan cero al volumen, porque la app no sabe qué
+fracción de tu peso levanta cada movimiento.
+
+---
+
+## Catálogo de ejercicios
+
+268 ejercicios con ilustraciones, músculos, material e instrucciones, derivados
+del [dataset de Everkinetic](https://github.com/everkinetic/data) (CC BY-SA 4.0).
+
+Se descartó `free-exercise-db`, más conocido y con más ejercicios, porque la
+procedencia de sus imágenes está sin aclarar en
+[varias](https://github.com/yuhonas/free-exercise-db/issues/2)
+[incidencias](https://github.com/yuhonas/free-exercise-db/issues/12) sin
+respuesta. Una licencia que no se puede verificar no es una licencia.
+
+La clasificación por grupo muscular y patrón de movimiento es **derivada**: se
+normaliza a partir de los campos del origen y del nombre del ejercicio. Los
+nombres y las instrucciones están traducidos al español por reglas revisadas y,
+donde las reglas no llegaban, a mano.

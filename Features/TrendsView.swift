@@ -48,7 +48,7 @@ struct TrendsView: View {
     }
 
     private func days() -> [DailySnapshot] {
-        Array(model.history.sorted { $0.date < $1.date }.suffix(range))
+        Array(model.history.suffix(range))
     }
     private func points(_ metric: Metric) -> [TimelinePoint] {
         days().compactMap { day in day.score(metric).value.map { TimelinePoint(date: day.date, value: $0) } }
@@ -75,7 +75,7 @@ private struct WeekComparison: View {
     let range: Int
     var body: some View {
         let rows = Metric.allCases.compactMap { metric -> (Metric, Double, Double)? in
-            let values = Array(history.sorted { $0.date < $1.date }.suffix(range)).compactMap { $0.score(metric).value }
+            let values = Array(history.suffix(range)).compactMap { $0.score(metric).value }
             guard values.count >= 8 else { return nil }
             let half = values.count / 2
             guard let recent = Statistics.mean(Array(values.suffix(half))),

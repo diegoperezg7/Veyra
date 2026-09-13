@@ -9,7 +9,7 @@ struct FitnessView: View {
     @Environment(AppModel.self) private var model
     @State private var range = 42
 
-    private var ordered: [DailySnapshot] { model.history.sorted { $0.date < $1.date } }
+    private var ordered: [DailySnapshot] { model.history }
     private var load: CardioLoad { CardioLoadEngine.calculate(ordered.map { $0.rawLoad ?? 0 }) }
 
     /// Acute and chronic averages recomputed day by day, so the chart shows how

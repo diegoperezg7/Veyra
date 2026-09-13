@@ -1054,7 +1054,7 @@
  },
  {
   "id": "biceps-curl-with-overhead-extension-using-dumbbells-on-stability-ball",
-  "name": "Curl de bíceps Extensión sobre la cabeza en fitball con mancuernas",
+  "name": "Curl de bíceps + extensión sobre la cabeza en fitball con mancuernas",
   "englishName": "Biceps Curl with Overhead Extension using Dumbbells on Stability Ball",
   "primaryMuscles": [
    "triceps",
@@ -1086,7 +1086,7 @@
  },
  {
   "id": "biceps-curl-with-deadlift-with-barbell",
-  "name": "Curl de bíceps Peso muerto con barra",
+  "name": "Curl de bíceps + peso muerto con barra",
   "englishName": "Bicep Curl with Deadlift with Barbell",
   "primaryMuscles": [
    "biceps"
@@ -1122,7 +1122,7 @@
  },
  {
   "id": "biceps-curl-squat-with-dumbbell",
-  "name": "Curl de bíceps Sentadilla con mancuerna",
+  "name": "Curl de bíceps + sentadilla con mancuerna",
   "englishName": "Biceps Curl Squat with Dumbbell",
   "primaryMuscles": [
    "biceps"
@@ -1155,7 +1155,7 @@
  },
  {
   "id": "lateral-lunge-with-biceps-curl-with-dumbbell",
-  "name": "Curl de bíceps Zancada lateral con mancuerna",
+  "name": "Curl de bíceps + zancada lateral con mancuerna",
   "englishName": "Lateral Lunge with Bicep Curl with Dumbbell",
   "primaryMuscles": [
    "quadriceps",
@@ -3080,7 +3080,7 @@
  },
  {
   "id": "barbell-front-raise-pullover",
-  "name": "Elevación frontal Pullover con barra",
+  "name": "Elevación frontal + pullover con barra",
   "englishName": "Barbell Front Raise and Pullover",
   "primaryMuscles": [
    "chest"
@@ -4813,7 +4813,7 @@
  },
  {
   "id": "incline-flys-twist",
-  "name": "Giro Apertura inclinado",
+  "name": "Giro + apertura inclinado",
   "englishName": "Incline Fly's with a Twist",
   "primaryMuscles": [
    "chest"
@@ -5910,7 +5910,7 @@
  },
  {
   "id": "lying-close-grip-triceps-press-to-chin-with-barbell",
-  "name": "Press de tríceps Dominada supina tumbado agarre cerrado con barra",
+  "name": "Press de tríceps + dominada supina tumbado agarre cerrado con barra",
   "englishName": "Lying Close Grip Triceps Press to Chin with Barbell",
   "primaryMuscles": [
    "triceps"
